@@ -84,70 +84,25 @@ jobs:
           ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
 
-      # Ejecutar pruebas de rendimiento con configuración especial para Lighthouse en CI
+      # Ejecutar pruebas de rendimiento
       - name: Run performance tests
         run: |
-          echo "🚀 Configurando entorno para Lighthouse en CI..."
-          
-          # Diagnóstico completo del entorno
-          echo "📊 Diagnóstico del entorno para Lighthouse:"
-          echo "- Node.js: $(node -v)"
-          echo "- NPM: $(npm -v)"
-          echo "- OS: $(uname -a)"
-          
-          # Forzar IPv4 y añadir entrada en /etc/hosts para localhost
-          echo "🌐 Configurando sistema para usar IPv4..."
-          echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts
-          
-          # Variables de entorno para forzar IPv4
-          export LIGHTHOUSE_CI_FLAGS="--disable-ipv6 --prefer-ipv4"
-          export NODE_OPTIONS="--dns-result-order=ipv4first"
-          
-          # Verificar que localhost resuelva a IPv4
-          echo "🔍 Verificando resolución de localhost:"
-          getent hosts localhost || echo "⚠️ No se pudo resolver localhost"
-          
-          # Verificar conectividad a localhost:3000
-          echo "🌐 Verificando conectividad a la aplicación:"
-          curl -I http://localhost:3000 || echo "⚠️ No se pudo conectar a http://localhost:3000"
-          curl -I http://127.0.0.1:3000 || echo "⚠️ No se pudo conectar a http://127.0.0.1:3000"
-          
-          # Verificar puertos en uso
-          echo "🔌 Verificando puertos en uso:"
-          sudo lsof -i -P -n | grep LISTEN || echo "No se encontraron puertos en escucha"
-          
-          # Limpiar posibles puertos en uso
-          echo "🧹 Limpiando puertos que puedan estar en uso..."
-          sudo lsof -i :9222 | grep LISTEN | awk '{print $2}' | xargs -r kill -9 || true
-          
-          # Verificar la configuración de red
-          echo "🌐 Información de red (IPv4):"
-          ip -4 addr show || echo "No se pudo obtener información IPv4"
-          
-          echo "🌐 Información de red (IPv6):"
-          ip -6 addr show || echo "No se pudo obtener información IPv6"
-          
-          echo "📝 Configuración de /etc/hosts:"
-          cat /etc/hosts
-          
-          echo "🏃‍♂️ Ejecutando pruebas de rendimiento con configuración optimizada para CI..."
-          # Usar NODE_EXTRA_CA_CERTS='' para evitar problemas con certificados
-          # y añadir opciones optimizadas para IPv4
-          NODE_OPTIONS="--dns-result-order=ipv4first" NODE_EXTRA_CA_CERTS='' npx cypress run \
+          echo "Ejecutando pruebas de rendimiento (performance.cy.js)..."
+          npx cypress run \
             --spec "cypress/e2e/performance.cy.js" \
             --browser chrome \
-            --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=60000,pageLoadTimeout=180000 \
-            --config-file cypress.config.js
+            --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=30000,pageLoadTimeout=180000
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
-          # Configuraciones optimizadas para Lighthouse en CI (ahora forzando IPv4)
-          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu --disable-ipv6"
-          # Chrome args con optimizaciones específicas para IPv4
-          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions,--disable-software-rasterizer,--headless=new,--remote-debugging-address=127.0.0.1,--remote-debugging-port=9222,--disable-ipv6,--host-resolver-rules=MAP * ~NOTFOUND,EXCLUDE localhost"
-          # Variables adicionales para diagnóstico y solución de problemas
-          DEBUG: "cypress:server:browsers,cypress:server:util,cypress:server:protocol,cypress:launcher,cypress-audit"
-          LIGHTHOUSE_FLAGS: "--disable-ipv6"
+          # Variables específicas para Lighthouse
+          LIGHTHOUSE_CHROME_FLAGS: "--headless --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1"
+          # Forzar IPv4 y puerto específico
+          CYPRESS_lighthouse_port: 9222
+          CYPRESS_lighthouse_hostname: "127.0.0.1"
+          # Configuración de Chrome
+          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu --no-sandbox"
+          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions,--remote-debugging-port=9222,--remote-debugging-address=127.0.0.1"
 
       # Verificar archivos generados
       - name: Check generated files
