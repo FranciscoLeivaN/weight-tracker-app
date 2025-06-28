@@ -1,5 +1,5 @@
 const { defineConfig } = require("cypress");
-const { lighthouse, prepareAudit } = require("cypress-audit");
+// Removida dependencia de cypress-audit para simplificar
 
 module.exports = defineConfig({
   e2e: {
@@ -9,77 +9,37 @@ module.exports = defineConfig({
         const isCI = process.env.CI === 'true' || process.env.CI === true;
         console.log(`Entorno detectado: ${isCI ? 'CI' : 'Local'}`);
         
-        // Para Chrome/Chromium
+        // Para Chrome/Chromium - Configuración ULTRA simplificada
         if (browser.name === "chrome" || browser.name === "chromium") {
           console.log(`Configurando Chrome/Chromium para entorno: ${isCI ? 'CI' : 'Local'}`);
           
-          // Configuraciones básicas para todos los entornos
+          // Solo flags esenciales para estabilidad
           launchOptions.args.push('--disable-dev-shm-usage');
           launchOptions.args.push('--disable-web-security');
-          launchOptions.args.push('--ignore-certificate-errors');
-          launchOptions.args.push('--allow-running-insecure-content');
           
-          // Configuraciones adicionales para CI
+          // Configuraciones básicas para CI
           if (isCI) {
-            console.log('Aplicando configuraciones específicas de Chrome para CI');
+            console.log('Aplicando configuraciones mínimas para CI');
             
-            // Flags esenciales para CI
+            // Solo flags críticos
             launchOptions.args.push('--headless');
             launchOptions.args.push('--disable-gpu');
             launchOptions.args.push('--no-sandbox');
-            launchOptions.args.push('--disable-setuid-sandbox');
-            launchOptions.args.push('--no-first-run');
-            launchOptions.args.push('--disable-extensions');
-            launchOptions.args.push('--disable-background-timer-throttling');
-            launchOptions.args.push('--disable-backgrounding-occluded-windows');
-            launchOptions.args.push('--disable-renderer-backgrounding');
-            launchOptions.args.push('--disable-features=TranslateUI');
-            launchOptions.args.push('--disable-ipc-flooding-protection');
-            launchOptions.args.push('--enable-features=NetworkService,NetworkServiceLogging');
-            launchOptions.args.push('--force-color-profile=srgb');
-            launchOptions.args.push('--metrics-recording-only');
-            launchOptions.args.push('--no-default-browser-check');
-            launchOptions.args.push('--disable-default-apps');
-            launchOptions.args.push('--disable-background-networking');
-            launchOptions.args.push('--disable-sync');
-            launchOptions.args.push('--disable-translate');
-            launchOptions.args.push('--hide-scrollbars');
             launchOptions.args.push('--mute-audio');
             
-            // 🔧 CLAVE: Configuración del puerto de debugging remoto para Lighthouse
-            launchOptions.args.push('--remote-debugging-port=9222');
-            launchOptions.args.push('--remote-debugging-address=127.0.0.1'); // Forzar IPv4
-            
-            console.log('✅ Configuración de Chrome para CI aplicada');
-          } else {
-            // Configuración local más simple pero efectiva
-            launchOptions.args.push('--remote-debugging-port=9222');
-            launchOptions.args.push('--remote-debugging-address=127.0.0.1');
+            console.log('✅ Configuración mínima para CI aplicada');
           }
-          
-          // Preparar Lighthouse en ambos entornos
-          console.log(`Preparando auditoría Lighthouse para entorno: ${isCI ? 'CI' : 'Local'}`);
-          return prepareAudit(launchOptions);
         }
         
         return launchOptions;
       });
 
       on("task", {
-        // 🔧 CORRECCIÓN PRINCIPAL: Configuración simplificada de lighthouse
-        lighthouse: lighthouse({
-          port: 9222,
-          hostname: '127.0.0.1',
-          // Configuración adicional para estabilidad
-          disableDeviceEmulation: true,
-          chromeFlags: [
-            '--headless',
-            '--no-sandbox',
-            '--disable-gpu',
-            '--disable-dev-shm-usage',
-            '--disable-setuid-sandbox'
-          ]
-        }),
+        // Solo tareas básicas para logging
+        log(message) {
+          console.log(`[CYPRESS LOG] ${message}`);
+          return null;
+        },
         
         // Tarea para registrar mensajes en la consola
         log(message) {

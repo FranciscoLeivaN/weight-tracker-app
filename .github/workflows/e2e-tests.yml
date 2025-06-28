@@ -58,17 +58,19 @@ jobs:
 
       - name: Run E2E tests
         run: |
-          echo "Ejecutando pruebas E2E..."
+          echo "Ejecutando pruebas E2E con Electron..."
+          ELECTRON_EXTRA_LAUNCH_ARGS="--no-sandbox" \
           npx cypress run \
             --spec "cypress/e2e/weightTracker.cy.js" \
-            --browser chrome \
+            --browser electron \
             --config video=true,videoCompression=false,screenshotOnRunFailure=true \
             --config defaultCommandTimeout=60000,pageLoadTimeout=120000 \
             --config numTestsKeptInMemory=0
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
-          DEBUG: cypress:server,cypress:launcher
+          CYPRESS_NO_SANDBOX: 1
+          CYPRESS_ACCEPT_EULA: 1
 
       # Almacenar resultados como artefactos
       - name: Upload test results

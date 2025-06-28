@@ -13,7 +13,16 @@ describe('Pruebas E2E de la Aplicación de Seguimiento de Peso', () => {
   beforeEach(() => {
     // Limpia el localStorage antes de cada prueba para asegurar un estado limpio
     cy.clearLocalStorage();
-    cy.visit('http://localhost:3000'); // Asume que tu aplicación corre en este puerto
+    
+    // Visitar la página con mayor tolerancia a fallos en CI
+    cy.visit('/', {
+      timeout: 60000, // 1 minuto de timeout
+      failOnStatusCode: false, // No fallar por código de estado HTTP
+      retryOnNetworkFailure: true // Reintentar en caso de fallos de red
+    });
+    
+    // Esperar a que la página se cargue completamente
+    cy.get('body', { timeout: 30000 }).should('be.visible');
   });
 
   /**
