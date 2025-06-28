@@ -9,13 +9,12 @@ on:
 # Este workflow ejecuta las pruebas E2E con Cypress
 # - Pruebas E2E: weightTracker.cy.js
 # - Pruebas de rendimiento: performance.cy.js (con umbrales especialmente adaptados para CI)
-# IMPORTANTE: El archivo performance-ci-skip.cy.js ya no se usa.
-# Las pruebas unitarias se ejecutan por separado en unit-tests.yml
 
 jobs:
   e2e-tests:
     name: Ejecutar pruebas E2E
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,71 +28,98 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      # Iniciar el servidor de desarrollo en segundo plano
+      # Iniciar el servidor de desarrollo en segundo plano y guardar PID
       - name: Start development server
-        run: npm start &
+        run: |
+          npm start &
+          echo $! > server.pid
+          echo "Servidor iniciado con PID: $(cat server.pid)"
         env:
           CI: true
+          NODE_ENV: test
           
-      # Esperar a que el servidor esté listo
+      # Esperar a que el servidor esté listo (versión optimizada)
       - name: Wait for server to be ready
         run: |
           echo "Esperando a que el servidor esté listo en http://localhost:3000..."
-          # Usar curl para esperar hasta que el servidor responda
           timeout=180
-          until $(curl --output /dev/null --silent --head --fail http://localhost:3000) || [ $timeout -le 0 ]; do
-            echo "Esperando... ($timeout segundos restantes)"
+          counter=0
+          
+          until curl --output /dev/null --silent --head --fail http://localhost:3000; do
+            if [ $counter -ge $timeout ]; then
+              echo "Error: El servidor no respondió después de $timeout segundos"
+              echo "Verificando procesos activos:"
+              ps aux | grep node || true
+              echo "Logs del servidor (si están disponibles):"
+              tail -50 server.log 2>/dev/null || echo "No hay logs disponibles"
+              exit 1
+            fi
+            
+            echo "Esperando... (intento $((counter/5 + 1)), $((timeout - counter)) segundos restantes)"
             sleep 5
-            timeout=$((timeout - 5))
+            counter=$((counter + 5))
           done
           
-          if [ $timeout -le 0 ]; then
-            echo "Error: El servidor no respondió a tiempo"
-            exit 1
-          else
-            echo "¡Servidor listo!"
-          fi
-
-      # Ejecutar todas las pruebas Cypress secuencialmente
-      - name: Run all Cypress tests
-        run: |
-          echo "Ejecutando pruebas E2E..."
-          npx cypress run --spec "cypress/e2e/weightTracker.cy.js" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true
+          echo "¡Servidor listo y respondiendo!"
           
-          echo "Ejecutando pruebas de rendimiento..."
-          npx cypress run --spec "cypress/e2e/performance.cy.js" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=30000,pageLoadTimeout=180000
+      # Verificar que el servidor esté funcionando correctamente
+      - name: Health check
+        run: |
+          echo "Verificando estado del servidor:"
+          curl -I http://localhost:3000 || true
+          echo "PID del servidor: $(cat server.pid)"
+          ps -p $(cat server.pid) || echo "Proceso del servidor no encontrado"
+
+      # Ejecutar pruebas E2E
+      - name: Run E2E tests
+        run: |
+          echo "Ejecutando pruebas E2E (weightTracker.cy.js)..."
+          npx cypress run \
+            --spec "cypress/e2e/weightTracker.cy.js" \
+            --browser chrome \
+            --config video=true,videoCompression=false,screenshotOnRunFailure=true
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
-          # Configuraciones específicas para CI
           ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
 
-      # Verificar si los videos están siendo generados
+      # Ejecutar pruebas de rendimiento
+      - name: Run performance tests
+        run: |
+          echo "Ejecutando pruebas de rendimiento (performance.cy.js)..."
+          npx cypress run \
+            --spec "cypress/e2e/performance.cy.js" \
+            --browser chrome \
+            --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=30000,pageLoadTimeout=180000
+        env:
+          CI: true
+          CYPRESS_baseUrl: http://localhost:3000
+          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
+          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
+
+      # Verificar archivos generados
       - name: Check generated files
         if: always()
         run: |
           echo "Listando archivos generados..."
           
-          # Mostrar estructura de directorios
           echo "Estructura del directorio cypress:"
           find cypress -type d | sort
           
-          # Contar y listar videos
           echo "Videos encontrados:"
           find cypress -type f -name "*.mp4" | wc -l
           find cypress -type f -name "*.mp4" | xargs -I{} ls -la {} 2>/dev/null || echo "No se encontraron videos"
           
-          # Verificar permisos
-          echo "Permisos del directorio de videos:"
-          ls -la cypress/videos/ || echo "Directorio no encontrado"
+          echo "Capturas de pantalla:"
+          find cypress -type f -name "*.png" | wc -l
           
-      # Almacenamos los resultados como artefactos
-      - name: Upload all test results
+      # Almacenar resultados como artefactos
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-all-results
+          name: cypress-results-${{ github.run_number }}
           path: |
             cypress/videos/
             cypress/screenshots/
@@ -101,42 +127,55 @@ jobs:
             .cypress-audit/
           retention-days: 5
           
-      # Generar un informe detallado de pruebas
-      - name: Generate detailed test report
+      # Generar informe de pruebas
+      - name: Generate test report
         if: always()
         run: |
-          echo "## Resultados detallados de las pruebas" > test-report.md
-          echo "### Fecha y hora: $(date)" >> test-report.md
+          echo "## 📊 Resultados de Pruebas E2E" > test-report.md
+          echo "**Fecha:** $(date)" >> test-report.md
+          echo "**Commit:** ${{ github.sha }}" >> test-report.md
+          echo "**Rama:** ${{ github.ref_name }}" >> test-report.md
           echo "" >> test-report.md
           
-          echo "### Pruebas E2E" >> test-report.md
-          echo "- Archivo: weightTracker.cy.js" >> test-report.md
+          echo "### ✅ Pruebas Ejecutadas" >> test-report.md
+          echo "- **E2E:** weightTracker.cy.js" >> test-report.md
+          echo "- **Rendimiento:** performance.cy.js" >> test-report.md
           echo "" >> test-report.md
           
-          echo "### Pruebas de Rendimiento" >> test-report.md
-          echo "- Archivo: performance.cy.js" >> test-report.md
+          echo "### 📹 Videos Generados" >> test-report.md
+          find cypress/videos -type f -name "*.mp4" 2>/dev/null | sort | sed 's/^/- /' >> test-report.md
           echo "" >> test-report.md
           
-          echo "### Videos generados:" >> test-report.md
-          find cypress/videos -type f | sort >> test-report.md
-          echo "" >> test-report.md
+          echo "### 📸 Capturas de Pantalla" >> test-report.md
+          find cypress/screenshots -type f -name "*.png" 2>/dev/null | sort | sed 's/^/- /' >> test-report.md || echo "- Ninguna (todas las pruebas pasaron)" >> test-report.md
           
-          echo "### Capturas de pantalla (si existen):" >> test-report.md
-          find cypress/screenshots -type f 2>/dev/null | sort >> test-report.md
-          
-      # Subir el informe como artefacto
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-report
+          name: test-report-${{ github.run_number }}
           path: test-report.md
           
-      # Asegurarse de que todos los procesos en segundo plano se cierren
-      - name: Clean up background processes
+      # Limpieza mejorada de procesos
+      - name: Clean up processes
         if: always()
         run: |
-          echo "Cerrando procesos en segundo plano..."
+          echo "🧹 Limpiando procesos en segundo plano..."
+          
+          # Matar proceso por PID si existe
+          if [ -f server.pid ]; then
+            PID=$(cat server.pid)
+            echo "Matando proceso con PID: $PID"
+            kill $PID 2>/dev/null || echo "Proceso $PID ya no existe"
+            rm server.pid
+          fi
+          
+          # Matar procesos por patrón como respaldo
+          pkill -f "npm start" || true
           pkill -f "node.*start" || true
-          echo "Procesos Node.js activos:"
-          ps aux | grep node || true
+          
+          # Verificar que no queden procesos
+          echo "Procesos Node.js restantes:"
+          ps aux | grep node | grep -v grep || echo "✅ No hay procesos Node.js activos"
+          
+          echo "🏁 Limpieza completada"
