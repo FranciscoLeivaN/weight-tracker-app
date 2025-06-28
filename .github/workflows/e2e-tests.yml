@@ -22,17 +22,59 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Ejecutar levantamiento de pagina
-        run: npm run start
+      # Instalar servidor estático global
+      - name: Install serve
+        run: npm install -g serve
+          
+      # Compilar la aplicación y servirla en segundo plano
+      - name: Build and serve app
+        run: |
+          echo "Compilando la aplicación..."
+          npm run build
+          
+          # Iniciar servidor en segundo plano
+          echo "Iniciando servidor estático..."
+          serve -s build -l 3000 --config serve.json &
+          echo $! > server.pid
+          
+          # Esperar a que el servidor esté disponible
+          echo "Verificando disponibilidad del servidor..."
+          sleep 5
+          curl -I http://localhost:3000 || (echo "Error: Servidor no disponible" && exit 1)
+          echo "✅ Servidor disponible en http://localhost:3000"
 
+      # Ejecutar pruebas E2E
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          CYPRESS_baseUrl: http://localhost:3000
 
       - name: Subir informe de cobertura de código
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results
+          name: e2e-results-${{ github.run_number }}
           path: |
             cypress/videos/
             cypress/screenshots/
+            
+      # Limpiar recursos al finalizar
+      - name: Clean up
+        if: always()  # Ejecutar siempre este paso, incluso si fallan los anteriores
+        run: |
+          echo "Limpiando procesos y recursos..."
+          
+          # Matar servidor si existe su PID
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+            rm server.pid
+          fi
+          
+          # Matar cualquier proceso relacionado
+          pkill -f "serve -s build" || true
+          pkill -f "serve" || true
+          
+          # Liberar puerto
+          sudo fuser -k 3000/tcp || true
+          
+          echo "Limpieza completada"
         
