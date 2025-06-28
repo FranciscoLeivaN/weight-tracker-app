@@ -29,63 +29,39 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Prepare test environment
-        run: |
-          # Crear directorios para resultados
-          mkdir -p cypress/results
-          mkdir -p .cypress-audit
-          
-          # Eliminar el archivo performance-ci-skip.cy.js si existe
-          # para evitar que sea detectado y ejecutado
-          if [ -f "cypress/e2e/performance-ci-skip.cy.js" ]; then
-            echo "Eliminando archivo performance-ci-skip.cy.js obsoleto"
-            rm cypress/e2e/performance-ci-skip.cy.js
-          fi
-
-      # Primer paso: Ejecutar las pruebas E2E
-      - name: Cypress run E2E tests
-        uses: cypress-io/github-action@v6
-        with:
-          start: npm start
-          wait-on: 'http://localhost:3000'
-          wait-on-timeout: 180
-          browser: chrome
-          spec: "cypress/e2e/weightTracker.cy.js"
-          config: >-
-            video=true,
-            videoCompression=false,
-            screenshotOnRunFailure=true,
-            videoRecording=true,
-            videosFolder=cypress/videos
+      # Iniciar el servidor de desarrollo en segundo plano
+      - name: Start development server
+        run: npm start &
         env:
           CI: true
-          CYPRESS_baseUrl: http://localhost:3000
-          # Configuraciones específicas para CI
-          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
-          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
-      
-      # Segundo paso: Ejecutar las pruebas de rendimiento en un paso separado
-      - name: Cypress run Performance tests
-        uses: cypress-io/github-action@v6
-        with:
-          # No need to start the server again, it's already running
-          start: echo "Servidor ya iniciado en el paso anterior"
-          browser: chrome
-          spec: "cypress/e2e/performance.cy.js"
-          config: >-
-            video=true,
-            videoCompression=false,
-            screenshotOnRunFailure=true,
-            videoRecording=true,
-            videosFolder=cypress/videos,
-            defaultCommandTimeout=30000,
-            pageLoadTimeout=180000
-          env: >-
-            CI=true,
-            DEBUG=cypress:*,
-            CYPRESS_baseUrl=http://localhost:3000,
-            ELECTRON_EXTRA_LAUNCH_ARGS=--disable-gpu,
-            CYPRESS_CHROME_ARGS=--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions
+          
+      # Esperar a que el servidor esté listo
+      - name: Wait for server to be ready
+        run: |
+          echo "Esperando a que el servidor esté listo en http://localhost:3000..."
+          # Usar curl para esperar hasta que el servidor responda
+          timeout=180
+          until $(curl --output /dev/null --silent --head --fail http://localhost:3000) || [ $timeout -le 0 ]; do
+            echo "Esperando... ($timeout segundos restantes)"
+            sleep 5
+            timeout=$((timeout - 5))
+          done
+          
+          if [ $timeout -le 0 ]; then
+            echo "Error: El servidor no respondió a tiempo"
+            exit 1
+          else
+            echo "¡Servidor listo!"
+          fi
+
+      # Ejecutar todas las pruebas Cypress secuencialmente
+      - name: Run all Cypress tests
+        run: |
+          echo "Ejecutando pruebas E2E..."
+          npx cypress run --spec "cypress/e2e/weightTracker.cy.js" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true
+          
+          echo "Ejecutando pruebas de rendimiento..."
+          npx cypress run --spec "cypress/e2e/performance.cy.js" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=30000,pageLoadTimeout=180000
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
@@ -98,8 +74,19 @@ jobs:
         if: always()
         run: |
           echo "Listando archivos generados..."
+          
+          # Mostrar estructura de directorios
+          echo "Estructura del directorio cypress:"
+          find cypress -type d | sort
+          
+          # Contar y listar videos
+          echo "Videos encontrados:"
           find cypress -type f -name "*.mp4" | wc -l
-          find cypress -type f -name "*.mp4" | xargs -I{} ls -la {}
+          find cypress -type f -name "*.mp4" | xargs -I{} ls -la {} 2>/dev/null || echo "No se encontraron videos"
+          
+          # Verificar permisos
+          echo "Permisos del directorio de videos:"
+          ls -la cypress/videos/ || echo "Directorio no encontrado"
           
       # Almacenamos los resultados como artefactos
       - name: Upload all test results
@@ -144,3 +131,12 @@ jobs:
         with:
           name: test-report
           path: test-report.md
+          
+      # Asegurarse de que todos los procesos en segundo plano se cierren
+      - name: Clean up background processes
+        if: always()
+        run: |
+          echo "Cerrando procesos en segundo plano..."
+          pkill -f "node.*start" || true
+          echo "Procesos Node.js activos:"
+          ps aux | grep node || true
