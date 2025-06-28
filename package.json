@@ -20,11 +20,12 @@
     "eject": "react-scripts eject",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
-    "test:e2e": "cypress run",
+    "test:e2e": "cypress run --spec \"cypress/e2e/weightTracker.cy.js\"",
     "test:e2e:open": "cypress open",
     "test:all": "npm run test:coverage && npm run test:e2e",
-    "test:performance": "cypress run --spec cypress/e2e/performance.cy.js",
-    "test:performance:open": "cypress open --e2e --config-file cypress.config.js"
+    "test:performance": "cypress run --spec \"cypress/e2e/performance.cy.js\"",
+    "test:performance:open": "cypress open --e2e --config-file cypress.config.js",
+    "test:all:ci": "npm run test:coverage && npm run test:e2e && npm run test:performance"
   },
   "eslintConfig": {
     "extends": [

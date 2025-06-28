@@ -1,0 +1,84 @@
+name: Cypress Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  cypress-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Instala Chrome específicamente para pruebas
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@latest
+        with:
+          chrome-version: stable
+
+      # Pruebas unitarias
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
+        env:
+          CI: true
+
+      # Iniciar la aplicación en segundo plano
+      - name: Start application
+        run: npm start &
+        env:
+          CI: true
+
+      # Esperar a que la aplicación esté disponible
+      - name: Wait for application
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      # Ejecutar pruebas E2E
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          CI: true
+          CYPRESS_baseUrl: http://localhost:3000
+          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
+          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
+        continue-on-error: false # Las pruebas E2E son críticas
+        
+      # Ejecutar pruebas de rendimiento (como no críticas)
+      - name: Run Performance tests
+        run: npm run test:performance
+        env:
+          CI: true
+          CYPRESS_baseUrl: http://localhost:3000
+          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
+          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
+        continue-on-error: true # Las pruebas de rendimiento pueden fallar sin romper el build
+      
+      # Terminamos los procesos
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f "react-scripts start" || true
+          pkill -f "node" || true
+
+      # Almacenamos los resultados como artefactos
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cypress-results
+          path: |
+            cypress/videos/
+            cypress/screenshots/
+            coverage/
+          retention-days: 5
