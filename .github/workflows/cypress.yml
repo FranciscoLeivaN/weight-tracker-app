@@ -28,7 +28,7 @@ jobs:
         env:
           CI: true
 
-      # Usar la acción oficial de Cypress para ejecutar SOLO las pruebas E2E
+      # Paso 1: Ejecutar las pruebas E2E
       - name: Cypress run E2E tests
         uses: cypress-io/github-action@v6
         with:
@@ -44,6 +44,12 @@ jobs:
           # Configuraciones específicas para CI
           ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
+          
+      # Paso 2: Ejecutar el archivo de placeholder para pruebas de rendimiento
+      - name: Run performance placeholder test
+        run: npm run test:ci:performance
+        env:
+          CI: true
 
       # Almacenamos los resultados como artefactos
       - name: Upload test results

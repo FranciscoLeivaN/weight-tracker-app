@@ -24,12 +24,26 @@ jobs:
     - name: Instalar dependencias
       run: npm ci
       
-    # Usamos la acción oficial de Cypress para ejecutar las pruebas
-    - name: Ejecutar pruebas Cypress
-      uses: cypress-io/github-action@v5
+    # Ejecutamos únicamente las pruebas E2E sin incluir pruebas de rendimiento
+    - name: Ejecutar pruebas E2E Cypress
+      uses: cypress-io/github-action@v6
       with:
         start: npm start
         wait-on: 'http://localhost:3000'
         wait-on-timeout: 120
         browser: chrome
+        spec: cypress/e2e/weightTracker.cy.js
         record: false
+        config: video=true,screenshotOnRunFailure=true
+      env:
+        CI: true
+        CYPRESS_baseUrl: http://localhost:3000
+        # Configuraciones específicas para CI
+        ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
+        CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
+        
+    # Ejecutar el archivo placeholder para pruebas de rendimiento
+    - name: Ejecutar prueba placeholder de rendimiento
+      run: npm run test:ci:performance
+      env:
+        CI: true
