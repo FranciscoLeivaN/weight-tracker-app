@@ -13,7 +13,7 @@ module.exports = defineConfig({
         if (browser.name === "chrome" || browser.name === "chromium") {
           // Configuraciones para Chrome en CI
           if (isCI) {
-            console.log('Aplicando configuraciones de Chrome para CI');
+            console.log('Aplicando configuraciones de Chrome para CI y habilitando Lighthouse');
             launchOptions.args.push('--headless');
             launchOptions.args.push('--disable-gpu');
             launchOptions.args.push('--no-sandbox');
@@ -21,8 +21,12 @@ module.exports = defineConfig({
             launchOptions.args.push('--disable-setuid-sandbox');
             launchOptions.args.push('--no-first-run');
             launchOptions.args.push('--disable-extensions');
+            
+            // Además de aplicar configuraciones de CI, también preparamos Lighthouse
+            console.log('Preparando auditoría Lighthouse también para CI');
+            return prepareAudit(launchOptions);
           } else {
-            // Solo preparar las auditorías en entorno local
+            // Preparar las auditorías en entorno local
             console.log('Preparando auditoría Lighthouse en entorno local');
             return prepareAudit(launchOptions);
           }
@@ -35,11 +39,11 @@ module.exports = defineConfig({
           const isCI = process.env.CI === 'true' || process.env.CI === true;
           // Manejo especial para entornos CI
           if (isCI) {
-            console.log('Lighthouse en CI: saltando validaciones estrictas');
-            // En CI, podríamos simplificar el reporte o hacerlo pasar automáticamente
+            console.log('Lighthouse en CI: aplicando adaptaciones para CI');
+            // Añadimos una marca para indicar que se ejecutó en CI
             return {
               ...lighthouseReport,
-              skippedInCI: true
+              executedInCI: true
             };
           }
           return lighthouseReport;

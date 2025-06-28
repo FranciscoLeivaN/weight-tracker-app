@@ -1,4 +1,4 @@
-name: Cypress Tests
+name: Pruebas E2E con Cypress
 
 on:
   push:
@@ -6,8 +6,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Este workflow ejecuta las pruebas E2E con Cypress
+# - Pruebas E2E con Cypress
+# - Pruebas de rendimiento con Lighthouse (con umbrales adaptados para CI)
+# Las pruebas unitarias se ejecutan por separado en unit-tests.yml
+
 jobs:
-  cypress-tests:
+  e2e-tests:
+    name: Ejecutar pruebas E2E
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -21,12 +27,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      # Pruebas unitarias
-      - name: Run unit tests with coverage
-        run: npm run test:coverage
-        env:
-          CI: true
 
       # Paso 1: Ejecutar las pruebas E2E
       - name: Cypress run E2E tests
@@ -45,20 +45,19 @@ jobs:
           ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
           
-      # Paso 2: Ejecutar el archivo de placeholder para pruebas de rendimiento
-      - name: Run performance placeholder test
+      # Paso 2: Ejecutar pruebas de rendimiento con Lighthouse (umbrales adaptados para CI)
+      - name: Run Lighthouse performance tests
         run: npm run test:ci:performance
         env:
           CI: true
 
       # Almacenamos los resultados como artefactos
-      - name: Upload test results
+      - name: Upload E2E test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-results
+          name: cypress-e2e-results
           path: |
             cypress/videos/
             cypress/screenshots/
-            coverage/
           retention-days: 5
