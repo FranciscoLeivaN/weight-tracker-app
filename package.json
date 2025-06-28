@@ -15,6 +15,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "serve": "serve -s build -l 3000 --config serve.json",
     "test": "react-scripts test",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject",
@@ -27,7 +28,8 @@
     "test:all": "npm run test:coverage && npm run test:e2e && npm run test:performance",
     "test:ci:e2e": "cypress run --spec \"cypress/e2e/weightTracker.cy.js\" --browser electron --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=60000,pageLoadTimeout=120000,numTestsKeptInMemory=0",
     "test:ci:performance": "cypress run --spec \"cypress/e2e/performance.cy.js\" --browser electron --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=30000,pageLoadTimeout=60000,numTestsKeptInMemory=0 --env CI=true",
-    "test:ci:all": "npm run test:coverage && npm run test:ci:e2e && npm run test:ci:performance"
+    "test:ci:all": "npm run test:coverage && npm run test:ci:e2e && npm run test:ci:performance",
+    "test:local:ci": "npm run build && npm run serve"
   },
   "eslintConfig": {
     "extends": [

@@ -14,7 +14,8 @@ describe('Pruebas E2E de la Aplicación de Seguimiento de Peso', () => {
     // Limpia el localStorage antes de cada prueba para asegurar un estado limpio
     cy.clearLocalStorage();
     
-    // Visitar la página con mayor tolerancia a fallos en CI
+    // Visitar la página con mayor tolerancia a fallos en CI y log adicional
+    cy.log('Visitando página principal');
     cy.visit('/', {
       timeout: 60000, // 1 minuto de timeout
       failOnStatusCode: false, // No fallar por código de estado HTTP

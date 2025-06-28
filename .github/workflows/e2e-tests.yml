@@ -27,34 +27,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      # Iniciar servidor con mejor estrategia de espera
-      - name: Start server
+      # Instalar servidor simple sin webpack para pruebas
+      - name: Install serve package
+        run: npm install -g serve
+          
+      # Compilar la aplicación y servirla con 'serve'
+      - name: Build and serve application
         run: |
-          # Iniciar el servidor con un archivo PID para mejor control
-          npm start &
+          echo "Compilando la aplicación..."
+          npm run build
+          
+          # Iniciar el servidor 'serve' en lugar de webpack dev server
+          echo "Iniciando servidor estático..."
+          serve -s build -l 3000 --config serve.json &
           echo $! > server.pid
           
-          # Esperar a que el servidor esté disponible con timeout
-          echo "Esperando a que el servidor esté disponible..."
-          timeout=60
-          counter=0
-          until $(curl --output /dev/null --silent --fail http://localhost:3000) || [ $counter -eq $timeout ]; do
-            echo "Esperando al servidor... ($counter/$timeout)"
-            sleep 1
-            ((counter++))
-          done
-          
-          if [ $counter -eq $timeout ]; then
-            echo "Error: Timeout esperando al servidor"
-            cat npm-debug.log || echo "No hay log de npm debug"
-            exit 1
-          fi
-          
+          # Esperar a que el servidor esté disponible
+          echo "Verificando disponibilidad del servidor..."
+          sleep 5
+          curl -I http://localhost:3000 || (echo "Error: Servidor no disponible" && exit 1)
           echo "✅ Servidor disponible en http://localhost:3000"
         env:
           CI: true
-          PORT: 3000
-          BROWSER: none
 
       - name: Run E2E tests
         run: |
@@ -96,9 +90,9 @@ jobs:
           fi
           
           # Matar cualquier proceso relacionado
-          pkill -f "react-scripts start" || true
-          pkill -f "npm start" || true 
-          pkill -f "node" || true
+          pkill -f "serve -s build" || true
+          pkill -f "serve" || true 
+          pkill -9 -f "node" || true
           
           # Liberar puertos
           sudo fuser -k 3000/tcp || true

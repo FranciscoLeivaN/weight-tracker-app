@@ -53,33 +53,28 @@ jobs:
           chmod -R 777 /tmp/chrome-data
           chmod -R 777 /tmp/lighthouse-results
           
-      # Iniciar servidor con estrategia de espera robusta
-      - name: Start server
+      # Instalar servidor simple sin webpack para pruebas
+      - name: Install serve package
+        run: npm install -g serve
+          
+      # Compilar la aplicación y servirla con 'serve'
+      - name: Build and serve application
         run: |
-          # Iniciar el servidor con un archivo PID para mejor control
-          npm start &
+          echo "Compilando la aplicación..."
+          npm run build
+          
+          # Iniciar el servidor 'serve' en lugar de webpack dev server
+          echo "Iniciando servidor estático..."
+          serve -s build -l 3000 --config serve.json &
           echo $! > server.pid
           
-          # Esperar a que el servidor esté disponible con timeout
-          echo "Esperando a que el servidor esté disponible..."
-          timeout=60
-          counter=0
-          until $(curl --output /dev/null --silent --fail http://localhost:3000) || [ $counter -eq $timeout ]; do
-            echo "Esperando al servidor... ($counter/$timeout)"
-            sleep 1
-            ((counter++))
-          done
-          
-          if [ $counter -eq $timeout ]; then
-            echo "Error: Timeout esperando al servidor"
-            exit 1
-          fi
-          
+          # Esperar a que el servidor esté disponible
+          echo "Verificando disponibilidad del servidor..."
+          sleep 5
+          curl -I http://localhost:3000 || (echo "Error: Servidor no disponible" && exit 1)
           echo "✅ Servidor disponible en http://localhost:3000"
         env:
           CI: true
-          PORT: 3000
-          BROWSER: none
       
       # Solución ULTRA simplificada con prueba mínima sin Lighthouse
       - name: Run performance tests
@@ -128,8 +123,8 @@ jobs:
           pkill -9 -f "google-chrome" || true
           pkill -9 -f "chrome" || true
           pkill -9 -f "chromium" || true
-          pkill -9 -f "react-scripts start" || true
-          pkill -9 -f "npm start" || true
+          pkill -9 -f "serve -s build" || true
+          pkill -9 -f "serve" || true
           pkill -9 -f "node" || true
           
           # Liberar puertos con fuerza
