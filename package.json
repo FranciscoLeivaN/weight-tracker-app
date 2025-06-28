@@ -22,7 +22,9 @@
     "cypress:run": "cypress run",
     "test:e2e": "cypress run",
     "test:e2e:open": "cypress open",
-    "test:all": "npm run test:coverage && npm run test:e2e"
+    "test:all": "npm run test:coverage && npm run test:e2e",
+    "test:performance": "cypress run --spec cypress/e2e/performance.cy.js",
+    "test:performance:open": "cypress open --e2e --config-file cypress.config.js"
   },
   "eslintConfig": {
     "extends": [
@@ -44,10 +46,11 @@
   },
   "jest": {
     "collectCoverageFrom": [
-      "src/**/*.{js,jsx}",
+      "src/**/*.{js,jsx,ts,tsx}",
       "!src/index.js",
       "!src/reportWebVitals.js",
-      "!src/setupTests.js"
+      "!src/setupTests.js",
+      "!src/**/*.test.{js,jsx,ts,tsx}"
     ],
     "coverageThreshold": {
       "global": {
@@ -60,6 +63,9 @@
   },
   "devDependencies": {
     "cypress": "^14.5.0",
+    "cypress-audit": "^1.1.0",
+    "lighthouse": "^12.7.0",
+    "serve": "^14.2.4",
     "start-server-and-test": "^2.0.12"
   }
 }

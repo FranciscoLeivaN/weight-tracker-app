@@ -17,3 +17,6 @@
 //
 // -- Esto es un ejemplo de sobrescritura de un comando existente --
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
+
+// Importar y registrar los comandos de cypress-audit para Lighthouse
+import 'cypress-audit/commands';
