@@ -11,25 +11,25 @@ module.exports = defineConfig({
         
         // Para Chrome/Chromium
         if (browser.name === "chrome" || browser.name === "chromium") {
-          // Configuraciones para Chrome en CI
+          console.log(`Configurando Chrome/Chromium para entorno: ${isCI ? 'CI' : 'local'}`);
+          
+          // Configuraciones básicas para todos los entornos
+          launchOptions.args.push('--disable-dev-shm-usage');
+          
+          // Configuraciones adicionales para CI
           if (isCI) {
-            console.log('Aplicando configuraciones de Chrome para CI y habilitando Lighthouse');
+            console.log('Aplicando configuraciones específicas de Chrome para CI');
             launchOptions.args.push('--headless');
             launchOptions.args.push('--disable-gpu');
             launchOptions.args.push('--no-sandbox');
-            launchOptions.args.push('--disable-dev-shm-usage');
             launchOptions.args.push('--disable-setuid-sandbox');
             launchOptions.args.push('--no-first-run');
             launchOptions.args.push('--disable-extensions');
-            
-            // Además de aplicar configuraciones de CI, también preparamos Lighthouse
-            console.log('Preparando auditoría Lighthouse también para CI');
-            return prepareAudit(launchOptions);
-          } else {
-            // Preparar las auditorías en entorno local
-            console.log('Preparando auditoría Lighthouse en entorno local');
-            return prepareAudit(launchOptions);
           }
+          
+          // Preparar Lighthouse en ambos entornos
+          console.log(`Preparando auditoría Lighthouse para entorno: ${isCI ? 'CI' : 'local'}`);
+          return prepareAudit(launchOptions);
         }
         return launchOptions;
       });

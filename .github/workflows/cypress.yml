@@ -7,8 +7,9 @@ on:
     types: [opened, synchronize, reopened]
 
 # Este workflow ejecuta las pruebas E2E con Cypress
-# - Pruebas E2E con Cypress
-# - Pruebas de rendimiento con Lighthouse (con umbrales adaptados para CI)
+# - Pruebas E2E: weightTracker.cy.js
+# - Pruebas de rendimiento: performance.cy.js (con umbrales especialmente adaptados para CI)
+# IMPORTANTE: El archivo performance-ci-skip.cy.js ya no se usa.
 # Las pruebas unitarias se ejecutan por separado en unit-tests.yml
 
 jobs:
@@ -28,20 +29,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Create results directory
+      - name: Prepare test environment
         run: |
+          # Crear directorios para resultados
           mkdir -p cypress/results
           mkdir -p .cypress-audit
+          
+          # Eliminar el archivo performance-ci-skip.cy.js si existe
+          # para evitar que sea detectado y ejecutado
+          if [ -f "cypress/e2e/performance-ci-skip.cy.js" ]; then
+            echo "Eliminando archivo performance-ci-skip.cy.js obsoleto"
+            rm cypress/e2e/performance-ci-skip.cy.js
+          fi
 
-      # Ejecutar todas las pruebas (E2E y rendimiento) en un solo paso con Cypress
-      - name: Cypress run all tests (E2E and Performance)
+      # Primer paso: Ejecutar las pruebas E2E
+      - name: Cypress run E2E tests
         uses: cypress-io/github-action@v6
         with:
           start: npm start
           wait-on: 'http://localhost:3000'
           wait-on-timeout: 180
           browser: chrome
-          spec: "cypress/e2e/*.cy.js"
+          spec: "cypress/e2e/weightTracker.cy.js"
           config: >-
             video=true,
             videoCompression=false,
@@ -54,7 +63,44 @@ jobs:
           # Configuraciones específicas para CI
           ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
+      
+      # Segundo paso: Ejecutar las pruebas de rendimiento en un paso separado
+      - name: Cypress run Performance tests
+        uses: cypress-io/github-action@v6
+        with:
+          # No need to start the server again, it's already running
+          start: echo "Servidor ya iniciado en el paso anterior"
+          browser: chrome
+          spec: "cypress/e2e/performance.cy.js"
+          config: >-
+            video=true,
+            videoCompression=false,
+            screenshotOnRunFailure=true,
+            videoRecording=true,
+            videosFolder=cypress/videos,
+            defaultCommandTimeout=30000,
+            pageLoadTimeout=180000
+          env: >-
+            CI=true,
+            DEBUG=cypress:*,
+            CYPRESS_baseUrl=http://localhost:3000,
+            ELECTRON_EXTRA_LAUNCH_ARGS=--disable-gpu,
+            CYPRESS_CHROME_ARGS=--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions
+        env:
+          CI: true
+          CYPRESS_baseUrl: http://localhost:3000
+          # Configuraciones específicas para CI
+          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
+          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
 
+      # Verificar si los videos están siendo generados
+      - name: Check generated files
+        if: always()
+        run: |
+          echo "Listando archivos generados..."
+          find cypress -type f -name "*.mp4" | wc -l
+          find cypress -type f -name "*.mp4" | xargs -I{} ls -la {}
+          
       # Almacenamos los resultados como artefactos
       - name: Upload all test results
         if: always()
@@ -68,14 +114,28 @@ jobs:
             .cypress-audit/
           retention-days: 5
           
-      # Generar un informe de pruebas completo
-      - name: Generate test report
+      # Generar un informe detallado de pruebas
+      - name: Generate detailed test report
         if: always()
         run: |
-          echo "## Resultados de las pruebas" > test-report.md
-          echo "### Pruebas E2E y de Rendimiento" >> test-report.md
-          echo "- Los resultados completos están disponibles en los artefactos de la ejecución" >> test-report.md
+          echo "## Resultados detallados de las pruebas" > test-report.md
+          echo "### Fecha y hora: $(date)" >> test-report.md
+          echo "" >> test-report.md
+          
+          echo "### Pruebas E2E" >> test-report.md
+          echo "- Archivo: weightTracker.cy.js" >> test-report.md
+          echo "" >> test-report.md
+          
+          echo "### Pruebas de Rendimiento" >> test-report.md
+          echo "- Archivo: performance.cy.js" >> test-report.md
+          echo "" >> test-report.md
+          
+          echo "### Videos generados:" >> test-report.md
           find cypress/videos -type f | sort >> test-report.md
+          echo "" >> test-report.md
+          
+          echo "### Capturas de pantalla (si existen):" >> test-report.md
+          find cypress/screenshots -type f 2>/dev/null | sort >> test-report.md
           
       # Subir el informe como artefacto
       - name: Upload test report
