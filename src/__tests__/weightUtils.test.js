@@ -6,7 +6,7 @@ import {
   saveWeights
 } from '../utils/weightUtils';
 
-// Mock localStorage
+// Simulación (mock) del objeto localStorage para pruebas
 const localStorageMock = (() => {
   let store = {};
   return {
@@ -28,23 +28,25 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 describe('Funciones de Utilidad de Peso', () => {
-  // Reset mocks between tests
+  // Reiniciar simulaciones entre pruebas
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
   });
   
   describe('canAddWeight', () => {
-    test('should allow adding weight when no previous entries exist', () => {
+    test('Debería permitir añadir peso cuando no existen registros previos', () => {
+      // Descripción: Verifica que se permita añadir un peso si no hay registros previos
       const result = canAddWeight([]);
       expect(result.canAdd).toBeTruthy();
       expect(result.hoursRemaining).toBe(0);
     });
     
-    test('should allow adding weight when more than 48 hours have passed', () => {
+    test('Debería permitir añadir peso cuando han pasado más de 48 horas', () => {
+      // Descripción: Verifica que se permita añadir un peso cuando han pasado más de 48 horas desde el último registro
       const now = new Date('2025-06-27T10:00:00Z');
       const weights = [
-        { weight: 70, date: '2025-06-24T10:00:00Z' } // 72 hours ago
+        { weight: 70, date: '2025-06-24T10:00:00Z' } // 72 horas atrás
       ];
       
       const result = canAddWeight(weights, now);
@@ -52,20 +54,22 @@ describe('Funciones de Utilidad de Peso', () => {
       expect(result.hoursRemaining).toBe(0);
     });
     
-    test('should not allow adding weight when less than 48 hours have passed', () => {
+    test('No debería permitir añadir peso cuando han pasado menos de 48 horas', () => {
+      // Descripción: Verifica que no se permita añadir un peso cuando han pasado menos de 48 horas desde el último registro
       const now = new Date('2025-06-27T10:00:00Z');
       const weights = [
-        { weight: 70, date: '2025-06-26T10:00:00Z' } // 24 hours ago
+        { weight: 70, date: '2025-06-26T10:00:00Z' } // 24 horas atrás
       ];
       
       const result = canAddWeight(weights, now);
       expect(result.canAdd).toBeFalsy();
-      expect(result.hoursRemaining).toBe(24); // 24 hours remaining
+      expect(result.hoursRemaining).toBe(24); // 24 horas restantes
     });
   });
   
   describe('createWeightEntry', () => {
-    test('should create a valid weight entry object', () => {
+    test('Debería crear un objeto de registro de peso válido', () => {
+      // Descripción: Verifica que la función cree un objeto con las propiedades correctas
       const entry = createWeightEntry(75.5);
       expect(entry).toHaveProperty('weight');
       expect(entry).toHaveProperty('date');
@@ -75,18 +79,21 @@ describe('Funciones de Utilidad de Peso', () => {
       expect(new Date(entry.date)).toBeInstanceOf(Date);
     });
     
-    test('should create entry with userName if provided', () => {
+    test('Debería crear un registro con nombre de usuario si se proporciona', () => {
+      // Descripción: Verifica que el registro incluya el nombre de usuario cuando se proporciona
       const entry = createWeightEntry(75.5, 'Juan');
       expect(entry.weight).toBe(75.5);
       expect(entry.userName).toBe('Juan');
     });
     
-    test('should convert string numbers to numeric values', () => {
+    test('Debería convertir valores numéricos de tipo string a números', () => {
+      // Descripción: Verifica que la función convierta correctamente strings numéricos a valores de tipo number
       const entry = createWeightEntry('80.2');
       expect(entry.weight).toBe(80.2);
     });
     
-    test('should throw an error for invalid weight values', () => {
+    test('Debería lanzar un error para valores de peso inválidos', () => {
+      // Descripción: Verifica que la función lance errores apropiados para entradas inválidas
       expect(() => createWeightEntry()).toThrow('Valor de peso inválido');
       expect(() => createWeightEntry('')).toThrow('Valor de peso inválido');
       expect(() => createWeightEntry('not-a-number')).toThrow('Valor de peso inválido');
@@ -94,7 +101,8 @@ describe('Funciones de Utilidad de Peso', () => {
   });
   
   describe('formatWeightEntry', () => {
-    test('should format a weight entry correctly without userName', () => {
+    test('Debería formatear un registro de peso correctamente sin nombre de usuario', () => {
+      // Descripción: Verifica que la función formatee correctamente un registro sin nombre de usuario
       const entry = {
         weight: 70.5,
         date: '2025-06-27T10:00:00Z'
@@ -106,7 +114,8 @@ describe('Funciones de Utilidad de Peso', () => {
       expect(formattedEntry).not.toContain('Usuario:');
     });
     
-    test('should format a weight entry correctly with userName', () => {
+    test('Debería formatear un registro de peso correctamente con nombre de usuario', () => {
+      // Descripción: Verifica que la función formatee correctamente un registro que incluye nombre de usuario
       const entry = {
         weight: 70.5,
         userName: 'Juan',
@@ -119,7 +128,8 @@ describe('Funciones de Utilidad de Peso', () => {
       expect(formattedEntry).toContain('Fecha:');
     });
     
-    test('should handle invalid entries', () => {
+    test('Debería manejar entradas inválidas', () => {
+      // Descripción: Verifica que la función maneje adecuadamente registros inválidos o incompletos
       expect(formatWeightEntry()).toBe('Registro inválido');
       expect(formatWeightEntry({})).toBe('Registro inválido');
       expect(formatWeightEntry({ weight: 70 })).toBe('Registro inválido');
@@ -127,7 +137,8 @@ describe('Funciones de Utilidad de Peso', () => {
   });
   
   describe('loadWeights', () => {
-    test('should load weights from localStorage', () => {
+    test('Debería cargar los pesos desde localStorage', () => {
+      // Descripción: Verifica que la función cargue correctamente los datos de pesos desde localStorage
       const mockWeights = [
         { weight: 70, date: '2025-06-20T10:00:00Z' },
         { weight: 69.5, date: '2025-06-23T10:00:00Z' }
@@ -140,14 +151,16 @@ describe('Funciones de Utilidad de Peso', () => {
       expect(result).toEqual(mockWeights);
     });
     
-    test('should return empty array when no weights in localStorage', () => {
+    test('Debería devolver un array vacío cuando no hay pesos en localStorage', () => {
+      // Descripción: Verifica que la función devuelva un array vacío cuando no hay datos guardados
       localStorage.getItem.mockReturnValueOnce(null);
       
       const result = loadWeights();
       expect(result).toEqual([]);
     });
     
-    test('should return empty array and handle errors when localStorage throws exception', () => {
+    test('Debería devolver un array vacío y manejar errores cuando localStorage lanza una excepción', () => {
+      // Descripción: Verifica que la función maneje adecuadamente los errores de localStorage
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       localStorage.getItem.mockImplementationOnce(() => {
         throw new Error('localStorage error');
@@ -162,7 +175,8 @@ describe('Funciones de Utilidad de Peso', () => {
   });
   
   describe('saveWeights', () => {
-    test('should save weights to localStorage', () => {
+    test('Debería guardar los pesos en localStorage', () => {
+      // Descripción: Verifica que la función guarde correctamente los datos de pesos en localStorage
       const weights = [
         { weight: 70, date: '2025-06-20T10:00:00Z' },
         { weight: 69.5, date: '2025-06-23T10:00:00Z' }
@@ -174,7 +188,8 @@ describe('Funciones de Utilidad de Peso', () => {
       expect(result).toBeTruthy();
     });
     
-    test('should handle errors when localStorage throws exception', () => {
+    test('Debería manejar errores cuando localStorage lanza una excepción', () => {
+      // Descripción: Verifica que la función maneje adecuadamente los errores al guardar en localStorage
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       localStorage.setItem.mockImplementationOnce(() => {
         throw new Error('localStorage error');

@@ -1,23 +1,37 @@
-# Getting Started with Create React App
+# Aplicación de Seguimiento de Peso
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Esta aplicación permite a los usuarios registrar sus pesos con nombre de usuario, visualizar el historial y asegura que haya al menos 48 horas entre cada registro.
 
-## Available Scripts
+El proyecto fue creado con [Create React App](https://github.com/facebook/create-react-app).
 
-In the project directory, you can run:
+## Scripts Disponibles
+
+En el directorio del proyecto, puedes ejecutar:
 
 ### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Ejecuta la aplicación en modo desarrollo.\
+Abre [http://localhost:3000](http://localhost:3000) para verla en tu navegador.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+La página se recargará cuando hagas cambios.\
+También puedes ver errores de lint en la consola.
 
 ### `npm test`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Inicia el ejecutor de pruebas en modo interactivo.\
+Consulta la sección sobre [ejecutar pruebas](https://facebook.github.io/create-react-app/docs/running-tests) para más información.
+
+### `npm run cypress:open` o `npm run test:e2e:open`
+
+Abre la interfaz gráfica de Cypress para ejecutar y depurar pruebas funcionales end-to-end.\
+Esto te permite seleccionar y ejecutar pruebas específicas en un navegador visual.\
+**IMPORTANTE**: Asegúrate de tener la aplicación en ejecución con `npm start` antes de usar este comando.
+
+### `npm run cypress:run` o `npm run test:e2e`
+
+Ejecuta todas las pruebas de Cypress en modo headless (sin interfaz gráfica).\
+Útil para integración continua o para ejecutar todas las pruebas rápidamente.\
+**IMPORTANTE**: Asegúrate de tener la aplicación en ejecución con `npm start` antes de usar este comando.
 
 ### `npm run build`
 
@@ -39,11 +53,35 @@ Instead, it will copy all the configuration files and the transitive dependencie
 
 You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
 
-## Learn More
+## Características de la Aplicación
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- Registro de peso con nombre de usuario
+- Validación de 48 horas entre registros
+- Persistencia de datos usando localStorage
+- Historial de registros con fecha y hora
+- Capacidad para borrar todo el historial
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Pruebas
+
+El proyecto incluye tres niveles de pruebas:
+
+### Pruebas Unitarias (Jest)
+
+Las pruebas unitarias verifican componentes y funciones individuales en aislamiento.
+Se encuentran en `src/__tests__/` y se pueden ejecutar con `npm test`.
+
+### Pruebas Funcionales (Cypress)
+
+Las pruebas end-to-end verifican la aplicación completa simulando la interacción del usuario.
+Se encuentran en `cypress/e2e/` y se pueden ejecutar con `npm run cypress:open`.
+
+## Más Información
+
+Consulta la [documentación de Create React App](https://facebook.github.io/create-react-app/docs/getting-started) para más información sobre la estructura base.
+
+Para aprender React, visita la [documentación oficial de React](https://reactjs.org/).
+
+Para información sobre Cypress, visita la [documentación oficial de Cypress](https://docs.cypress.io).
 
 ### Code Splitting
 

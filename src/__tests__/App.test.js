@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../App';
 
-// Mock localStorage
+// Simulación (mock) del objeto localStorage para pruebas
 const localStorageMock = (() => {
   let store = {};
   return {
@@ -23,13 +23,14 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock
 });
 
-describe('App Component', () => {
+describe('Componente App', () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
   });
   
-  test('renders without crashing', () => {
+  test('Debería renderizarse sin errores', () => {
+    // Descripción: Verifica que el componente se renderice correctamente con todos sus elementos principales
     render(<App />);
     
     expect(screen.getByText('Registro de Peso')).toBeInTheDocument();
@@ -38,7 +39,8 @@ describe('App Component', () => {
     expect(screen.getByPlaceholderText('Ingresa tu peso (kg)')).toBeInTheDocument();
   });
   
-  test('allows entering a valid weight value', () => {
+  test('Debería permitir ingresar un valor de peso válido', () => {
+    // Descripción: Verifica que el campo de entrada de peso acepte valores numéricos correctamente
     render(<App />);
     
     const input = screen.getByPlaceholderText('Ingresa tu peso (kg)');
@@ -47,114 +49,119 @@ describe('App Component', () => {
     expect(input.value).toBe('75.5');
   });
   
-  test('displays error message for invalid weight input', async () => {
+  test('Debería mostrar mensaje de error para entradas de peso inválidas', async () => {
+    // Descripción: Verifica que se muestren mensajes de error apropiados cuando se ingresan valores de peso inválidos
     render(<App />);
     
     const input = screen.getByPlaceholderText('Ingresa tu peso (kg)');
     const addButton = screen.getByText('Registrar Peso');
     
-    // Empty input
+    // Entrada vacía
     fireEvent.click(addButton);
     
     expect(await screen.findByText('Por favor, ingresa un peso válido.')).toBeInTheDocument();
     
-    // Invalid input (non-numeric)
+    // Entrada inválida (no numérica)
     fireEvent.change(input, { target: { value: 'abc' } });
     fireEvent.click(addButton);
     
     expect(await screen.findByText('Por favor, ingresa un peso válido.')).toBeInTheDocument();
   });
   
-  test('adds a new weight entry with valid input', async () => {
+  test('Debería añadir un nuevo registro de peso con entrada válida', async () => {
+    // Descripción: Verifica que se añada correctamente un nuevo registro cuando se proporciona un peso válido
     const { rerender } = render(<App />);
     
-    // Set up the input and button
+    // Configurar entrada y botón
     const input = screen.getByPlaceholderText('Ingresa tu peso (kg)');
     const addButton = screen.getByText('Registrar Peso');
     
-    // Enter a valid weight
+    // Ingresar un peso válido
     fireEvent.change(input, { target: { value: '75.5' } });
     fireEvent.click(addButton);
     
-    // Force a rerender to capture the state changes
+    // Forzar re-renderizado para capturar los cambios de estado
     rerender(<App />);
     
-    // The input should be cleared
+    // El campo de entrada debería limpiarse
     expect(input.value).toBe('');
     
-    // The entry should be added
+    // El registro debería ser añadido
     expect(localStorage.setItem).toHaveBeenCalled();
     expect(screen.queryByText('Aún no hay registros de peso.')).not.toBeInTheDocument();
     expect(screen.getByText(/Peso: 75.5 kg/)).toBeInTheDocument();
   });
   
   test('loads existing weights from localStorage', () => {
-    // Setup mock data
+    // Descripción: Verifica que la aplicación cargue correctamente los registros de peso desde el almacenamiento local
+    // Configurar datos simulados
     const mockWeights = [
       { weight: 70, date: '2025-06-20T10:00:00Z' },
       { weight: 69.5, date: '2025-06-23T10:00:00Z' }
     ];
     
-    // Set mock localStorage
+    // Configurar mock de localStorage
     localStorage.getItem.mockReturnValueOnce(JSON.stringify(mockWeights));
     
     render(<App />);
     
-    // Verify weights are displayed
+    // Verificar que los pesos se muestren
     expect(screen.getByText(/Peso: 70 kg/)).toBeInTheDocument();
     expect(screen.getByText(/Peso: 69.5 kg/)).toBeInTheDocument();
   });
   
   test('clears all weight records', () => {
-    // Setup mock data
+    // Descripción: Verifica que la funcionalidad de borrar todos los registros funcione correctamente
+    // Configurar datos simulados
     const mockWeights = [
       { weight: 70, date: '2025-06-20T10:00:00Z' }
     ];
     
-    // Set mock localStorage
+    // Configurar mock de localStorage
     localStorage.getItem.mockReturnValueOnce(JSON.stringify(mockWeights));
     
     render(<App />);
     
-    // Verify weight is displayed
+    // Verificar que el peso se muestre
     expect(screen.getByText(/Peso: 70 kg/)).toBeInTheDocument();
     
-    // Clear all records
+    // Borrar todos los registros
     const clearButton = screen.getByText('Borrar Todos los Registros');
     fireEvent.click(clearButton);
     
-    // Verify no records shown and localStorage cleared
+    // Verificar que no se muestren registros y localStorage se haya limpiado
     expect(screen.getByText('Aún no hay registros de peso.')).toBeInTheDocument();
     expect(localStorage.removeItem).toHaveBeenCalledWith('userWeights');
   });
   
   test('enforces 48-hour rule between weight entries', () => {
-    // Set up current time as fixed date
+    // Descripción: Verifica que la aplicación imponga la regla de 48 horas entre registros de peso
+    // Configurar hora actual como fecha fija
     jest.spyOn(Date, 'now').mockImplementation(() => 
       new Date('2025-06-27T10:00:00Z').getTime()
     );
     
-    // Setup mock data with recent entry (less than 48 hours ago)
+    // Configurar datos simulados con un registro reciente (menos de 48 horas)
     const mockWeights = [
-      { weight: 70, date: '2025-06-26T10:00:00Z' } // 24 hours ago
+      { weight: 70, date: '2025-06-26T10:00:00Z' } // 24 horas atrás
     ];
     
-    // Set mock localStorage
+    // Guardar el mock en localStorage
     localStorage.getItem.mockReturnValueOnce(JSON.stringify(mockWeights));
     
     render(<App />);
     
-    // Try to add a new weight
+    // Añadir un nuevo peso
     const input = screen.getByPlaceholderText('Ingresa tu peso (kg)');
     const addButton = screen.getByText('Registrar Peso');
     
     fireEvent.change(input, { target: { value: '72' } });
     fireEvent.click(addButton);
     
-    // Should show error message about waiting
+    // Verificar mensaje de error cuando se intenta añadir un peso antes de las 48 horas
     expect(screen.getByText(/Debes esperar \d+ horas/)).toBeInTheDocument();
     
-    // Clean up mock
+    // Limpiar el mock
     jest.restoreAllMocks();
   });
 });
