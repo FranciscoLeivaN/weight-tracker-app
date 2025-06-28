@@ -28,8 +28,8 @@ jobs:
         env:
           CI: true
 
-      # Usar la acción oficial de Cypress para ejecutar E2E tests
-      - name: Cypress run
+      # Usar la acción oficial de Cypress para ejecutar SOLO las pruebas E2E
+      - name: Cypress run E2E tests
         uses: cypress-io/github-action@v6
         with:
           start: npm start
@@ -37,6 +37,7 @@ jobs:
           wait-on-timeout: 180
           browser: chrome
           spec: cypress/e2e/weightTracker.cy.js
+          config: video=true,screenshotOnRunFailure=true
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
