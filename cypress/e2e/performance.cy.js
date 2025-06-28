@@ -1,163 +1,188 @@
-// cypress/e2e/performance.cy.js
-
-/**
- * Pruebas de rendimiento para la aplicación de seguimiento de peso
- * Estas pruebas utilizan Lighthouse para medir diversos aspectos del rendimiento 
- * como tiempo de carga, accesibilidad, mejores prácticas y SEO.
- * 
- * IMPORTANTE: Este archivo ejecuta pruebas tanto en entorno local como en CI.
- * Los umbrales son ajustados automáticamente para ser más permisivos en CI.
- */
-
 describe('Pruebas de Rendimiento con Lighthouse', () => {
-  // Detectar si estamos en CI basado en variables de entorno
-  const isCI = Cypress.env('CI') === true || Cypress.env('CI') === 'true';
+  const isCI = Cypress.env('CI') || false;
   
-  // Definir umbrales basados en el entorno
-  // En CI, usamos umbrales extremadamente tolerantes para evitar fallos
-  // Lo importante es que la prueba se ejecute, no los valores específicos
+  // Configuración de umbrales según el entorno
   const thresholds = {
-    performance: isCI ? 1 : 70,        // Prácticamente cualquier valor pasa en CI
-    accessibility: isCI ? 1 : 80,      // Prácticamente cualquier valor pasa en CI
-    'best-practices': isCI ? 1 : 85,   // Prácticamente cualquier valor pasa en CI
-    seo: isCI ? 1 : 80,                // Prácticamente cualquier valor pasa en CI
-    'first-contentful-paint': isCI ? 30000 : 2000,   // Muy tolerante en CI (30s)
-    'largest-contentful-paint': isCI ? 30000 : 2500, // Muy tolerante en CI (30s)
-    'total-blocking-time': isCI ? 10000 : 300,       // Muy tolerante en CI (10s)
-    'cumulative-layout-shift': isCI ? 1 : 0.1,       // Máximo permitido en CI
-    'speed-index': isCI ? 30000 : 3000                // Muy tolerante en CI (30s)
+    CI: {
+      performance: 50, // Más permisivo en CI
+      accessibility: 75,
+      'best-practices': 80,
+      seo: 75,
+      'first-contentful-paint': 4000,
+      'largest-contentful-paint': 5000,
+      'total-blocking-time': 600,
+      'cumulative-layout-shift': 0.2,
+      'speed-index': 5000
+    },
+    Local: {
+      performance: 70,
+      accessibility: 80,
+      'best-practices': 85,
+      seo: 80,
+      'first-contentful-paint': 2000,
+      'largest-contentful-paint': 2500,
+      'total-blocking-time': 300,
+      'cumulative-layout-shift': 0.1,
+      'speed-index': 3000
+    }
   };
-  
+
+  const currentThresholds = thresholds[isCI ? 'CI' : 'Local'];
+  const environment = isCI ? 'CI' : 'Local';
+
   before(() => {
-    // Registrar información de configuración al inicio
-    cy.task('log', `=== INICIANDO PRUEBAS DE RENDIMIENTO ===`);
-    cy.task('log', `Entorno detectado: ${isCI ? 'CI' : 'Local'}`);
-    cy.task('log', `Umbrales configurados para entorno ${isCI ? 'CI' : 'Local'}:`);
-    cy.task('log', JSON.stringify(thresholds, null, 2));
+    cy.task('log', '=== INICIANDO PRUEBAS DE RENDIMIENTO ===');
+    cy.task('log', `Entorno detectado: ${environment}`);
+    cy.task('log', `Umbrales configurados para entorno ${environment}:`);
+    cy.task('log', JSON.stringify(currentThresholds, null, 2));
   });
 
   beforeEach(() => {
-    // Añadir un retraso para estabilizar la prueba
-    cy.wait(2000);
+    cy.task('log', `Ejecutando prueba en entorno: ${environment}`);
     
-    cy.visit('/', {
-      // Aumentar los timeouts específicamente para las pruebas de rendimiento
-      timeout: isCI ? 120000 : 60000,
-      // No fallar en status de error en CI
-      failOnStatusCode: !isCI
-    });
-    
-    // Esperar a que la página esté completamente cargada
-    cy.get('body', { timeout: 10000 }).should('be.visible');
-    
-    // Registrar información de entorno
-    cy.task('log', `Ejecutando prueba en entorno: ${isCI ? 'CI' : 'Local'}`);
+    // Solo verificar conectividad en CI, donde Chrome ya está pre-iniciado
+    if (isCI) {
+      cy.task('waitForPort', { 
+        port: 9222, 
+        host: '127.0.0.1', 
+        timeout: 15000 
+      }).then((result) => {
+        if (!result.success) {
+          throw new Error(`No se pudo conectar al puerto de debugging: ${result.error}`);
+        }
+        cy.task('log', `✅ Puerto 9222 disponible después de ${result.elapsed}ms`);
+      });
+    }
   });
 
   it('debería pasar la auditoría de Lighthouse para la página principal', () => {
-    // Añadir un retraso antes de ejecutar Lighthouse
-    cy.wait(2000);
-    
-    // En CI, usamos una configuración simplificada
+    // Verificar conectividad solo si es necesario
     if (isCI) {
-      cy.task('log', '⚠️ Ejecutando versión simplificada de auditoría en CI');
-      
-      // Solo ejecutamos las métricas mínimas necesarias
-      cy.lighthouse({
-        'first-contentful-paint': thresholds['first-contentful-paint'],
-        'largest-contentful-paint': thresholds['largest-contentful-paint']
-      }, {
-        // Opciones mínimas para evitar fallos
-        formFactor: 'desktop',
-        throttling: {
-          cpuSlowdownMultiplier: 1,
-          rttMs: 0,
-          throughputKbps: 10240
-        },
-        skipAudits: [
-          'uses-optimized-images',
-          'uses-webp-images',
-          'offscreen-images',
-          'uses-responsive-images',
-          'efficient-animated-content',
-          'third-party-summary',
-          'uses-long-cache-ttl',
-          'total-byte-weight'
-        ]
-      });
-    } else {
-      // Entorno local - auditoría completa
-      cy.lighthouse({
-        performance: thresholds.performance,
-        accessibility: thresholds.accessibility,
-        'best-practices': thresholds['best-practices'],
-        seo: thresholds.seo,
-      }, {
-        // Opciones para Lighthouse
-        formFactor: 'desktop',
-        screenEmulation: {
-          width: 1280,
-          height: 720,
-          deviceScaleRatio: 1,
-          mobile: false,
-          disable: false,
+      cy.task('checkConnection').then((connectionResult) => {
+        cy.task('log', `Estado de conexión: ${JSON.stringify(connectionResult)}`);
+        
+        if (!connectionResult.connected) {
+          throw new Error(`No se puede conectar al puerto de debugging: ${connectionResult.error}`);
         }
-      }).then((report) => {
-        // Registrar los resultados
-        cy.task('log', `Resultados de la auditoría Lighthouse: ${JSON.stringify(report)}`);
       });
     }
-  });
 
-  // Solo ejecutamos una prueba adicional en CI para verificar la integración
-  it('debería completar la ejecución de Lighthouse correctamente', () => {
-    cy.wait(1000);
+    // Visitar la página principal
+    cy.visit('/');
     
-    if (isCI) {
-      // En CI, usamos un enfoque minimalista que garantice la ejecución
-      cy.task('log', '🔍 Ejecutando validación mínima de Lighthouse en CI');
-      
-      // Usar solo FCP que es la métrica más simple y estable
-      cy.lighthouse(
-        { 'first-contentful-paint': 60000 }, // Umbral extremadamente tolerante (60s)
-        {
+    // Esperar que la página se cargue completamente
+    cy.get('body').should('be.visible');
+    
+    // Espera adicional para estabilización (más tiempo en CI)
+    cy.wait(isCI ? 5000 : 2000);
+    
+    // Ejecutar auditoría de Lighthouse con configuración específica
+    cy.lighthouse(currentThresholds, {
+      port: Cypress.env('lighthouse_port') || 9222,
+      hostname: Cypress.env('lighthouse_hostname') || '127.0.0.1',
+      // Configuración adicional para CI
+      ...(isCI && {
+        disableDeviceEmulation: true,
+        settings: {
+          onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
           formFactor: 'desktop',
           throttling: {
-            cpuSlowdownMultiplier: 1, // Sin ralentización
-            rttMs: 0,                 // Sin latencia simulada
-            throughputKbps: 10240     // Ancho de banda alto
+            rttMs: 40,
+            throughputKbps: 10240,
+            cpuSlowdownMultiplier: 1
           },
-          // Saltear todas las auditorías posibles
-          skipAudits: [
-            'uses-http2',
-            'uses-optimized-images',
-            'uses-webp-images',
-            'offscreen-images',
-            'uses-responsive-images', 
-            'efficient-animated-content',
-            'third-party-summary',
-            'uses-long-cache-ttl',
-            'total-byte-weight',
-            'dom-size',
-            'critical-request-chains'
-          ]
+          screenEmulation: {
+            mobile: false,
+            width: 1280,
+            height: 720,
+            deviceScaleFactor: 1,
+            disabled: false
+          }
         }
-      ).then(() => {
-        cy.task('log', '✅ Validación de Lighthouse completada en CI');
-        expect(true).to.equal(true); // Siempre pasa
-      });
-    } else {
-      // En local, ejecutamos pruebas adicionales
-      cy.lighthouse({
-        'total-blocking-time': thresholds['total-blocking-time'],
-        'cumulative-layout-shift': thresholds['cumulative-layout-shift'],
-        'speed-index': thresholds['speed-index'],
-      });
-    }
+      })
+    });
   });
-  
+
+  it('debería completar la ejecución de Lighthouse correctamente', () => {
+    cy.visit('/');
+    
+    // Verificar que los elementos principales estén cargados
+    cy.get('body').should('be.visible');
+    cy.wait(isCI ? 5000 : 2000);
+    
+    // Configuración específica para la llamada directa a lighthouse
+    const lighthouseConfig = {
+      url: Cypress.config('baseUrl'),
+      options: {
+        port: Cypress.env('lighthouse_port') || 9222,
+        hostname: Cypress.env('lighthouse_hostname') || '127.0.0.1',
+        disableDeviceEmulation: isCI,
+        onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
+        settings: {
+          formFactor: 'desktop',
+          throttling: isCI ? {
+            // Configuración más permisiva para CI
+            rttMs: 40,
+            throughputKbps: 10240,
+            cpuSlowdownMultiplier: 1,
+            requestLatencyMs: 0,
+            downloadThroughputKbps: 0,
+            uploadThroughputKbps: 0
+          } : {
+            // Configuración estándar para local
+            rttMs: 150,
+            throughputKbps: 1638.4,
+            cpuSlowdownMultiplier: 4
+          },
+          screenEmulation: {
+            mobile: false,
+            width: 1280,
+            height: 720,
+            deviceScaleFactor: 1,
+            disabled: false
+          }
+        }
+      }
+    };
+    
+    cy.task('log', `Configuración de Lighthouse: ${JSON.stringify(lighthouseConfig.options, null, 2)}`);
+    
+    // Ejecutar Lighthouse y verificar que se complete sin errores
+    cy.task('lighthouse', lighthouseConfig).then((lighthouseReport) => {
+      cy.task('log', '✅ Lighthouse ejecutado correctamente');
+      
+      // Verificar que el reporte tenga la estructura esperada
+      expect(lighthouseReport).to.have.property('lhr');
+      expect(lighthouseReport.lhr).to.have.property('categories');
+      expect(lighthouseReport.lhr.categories).to.have.property('performance');
+      
+      // Log de métricas principales
+      const categories = lighthouseReport.lhr.categories;
+      const metrics = lighthouseReport.lhr.audits;
+      
+      cy.task('log', '📊 Métricas de rendimiento:');
+      cy.task('log', `  • Performance: ${Math.round(categories.performance.score * 100)}/100`);
+      cy.task('log', `  • Accessibility: ${Math.round(categories.accessibility.score * 100)}/100`);
+      cy.task('log', `  • Best Practices: ${Math.round(categories['best-practices'].score * 100)}/100`);
+      cy.task('log', `  • SEO: ${Math.round(categories.seo.score * 100)}/100`);
+      
+      // Métricas Core Web Vitals
+      if (metrics['first-contentful-paint']) {
+        cy.task('log', `  • First Contentful Paint: ${Math.round(metrics['first-contentful-paint'].numericValue)}ms`);
+      }
+      if (metrics['largest-contentful-paint']) {
+        cy.task('log', `  • Largest Contentful Paint: ${Math.round(metrics['largest-contentful-paint'].numericValue)}ms`);
+      }
+      if (metrics['total-blocking-time']) {
+        cy.task('log', `  • Total Blocking Time: ${Math.round(metrics['total-blocking-time'].numericValue)}ms`);
+      }
+      if (metrics['cumulative-layout-shift']) {
+        cy.task('log', `  • Cumulative Layout Shift: ${metrics['cumulative-layout-shift'].numericValue.toFixed(3)}`);
+      }
+    });
+  });
+
   after(() => {
-    // Registrar finalización de pruebas
-    cy.task('log', `=== PRUEBAS DE RENDIMIENTO COMPLETADAS ===`);
+    cy.task('log', '=== PRUEBAS DE RENDIMIENTO COMPLETADAS ===');
   });
 });

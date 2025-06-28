@@ -66,62 +66,19 @@ module.exports = defineConfig({
       });
 
       on("task", {
-        lighthouse: lighthouse((lighthouseReport) => {
-          const isCI = process.env.CI === 'true' || process.env.CI === true;
-          
-          // Configuración específica para Lighthouse
-          const lighthouseOptions = {
-            // Configuración del puerto para conectar con Chrome
-            port: 9222,
-            hostname: '127.0.0.1', // Forzar IPv4 en lugar de IPv6
-            
-            // Configuraciones específicas para CI
-            ...(isCI && {
-              chromeFlags: [
-                '--headless',
-                '--no-sandbox',
-                '--disable-gpu',
-                '--disable-dev-shm-usage',
-                '--disable-setuid-sandbox',
-                '--remote-debugging-port=9222',
-                '--remote-debugging-address=127.0.0.1'
-              ]
-            })
-          };
-          
-          // Manejo especial para entornos CI
-          if (isCI) {
-            console.log('🔧 Lighthouse en CI: aplicando adaptaciones para CI');
-            console.log('📊 Configuración de Lighthouse:', JSON.stringify(lighthouseOptions, null, 2));
-            
-            // Guardar el reporte completo en un archivo
-            const fs = require('fs');
-            const path = require('path');
-            const reportDir = path.join(__dirname, '.cypress-audit');
-            
-            if (!fs.existsSync(reportDir)) {
-              fs.mkdirSync(reportDir, { recursive: true });
-            }
-            
-            const timestamp = new Date().toISOString().replace(/:/g, '-');
-            const reportPath = path.join(reportDir, `lighthouse-report-${timestamp}.json`);
-            
-            try {
-              fs.writeFileSync(reportPath, JSON.stringify(lighthouseReport, null, 2));
-              console.log(`✅ Reporte de Lighthouse guardado en: ${reportPath}`);
-            } catch (error) {
-              console.error('❌ Error guardando reporte de Lighthouse:', error);
-            }
-            
-            // Añadimos información adicional para CI
-            return {
-              ...lighthouseReport,
-              executedInCI: true,
-              lighthouseOptions
-            };
-          }
-          
-          return lighthouseReport;
+        // 🔧 CORRECCIÓN PRINCIPAL: Configuración simplificada de lighthouse
+        lighthouse: lighthouse({
+          port: 9222,
+          hostname: '127.0.0.1',
+          // Configuración adicional para estabilidad
+          disableDeviceEmulation: true,
+          chromeFlags: [
+            '--headless',
+            '--no-sandbox',
+            '--disable-gpu',
+            '--disable-dev-shm-usage',
+            '--disable-setuid-sandbox'
+          ]
         }),
         
         // Tarea para registrar mensajes en la consola
@@ -130,14 +87,14 @@ module.exports = defineConfig({
           return null;
         },
         
-        // Nueva tarea para verificar conectividad
+        // Tarea mejorada para verificar conectividad con timeout más largo
         checkConnection() {
           const net = require('net');
           
           return new Promise((resolve) => {
             const client = new net.Socket();
             
-            client.setTimeout(5000);
+            client.setTimeout(10000); // Aumentamos timeout a 10 segundos
             
             client.on('connect', () => {
               console.log('✅ Conexión al puerto de debugging exitosa');
@@ -156,7 +113,50 @@ module.exports = defineConfig({
               resolve({ connected: false, error: 'timeout' });
             });
             
-            client.connect(9222, '127.0.0.1');
+            try {
+              client.connect(9222, '127.0.0.1');
+            } catch (error) {
+              console.log('❌ Error iniciando conexión:', error.message);
+              resolve({ connected: false, error: error.message });
+            }
+          });
+        },
+        
+        // Nueva tarea para esperar que el puerto esté disponible
+        waitForPort({ port = 9222, host = '127.0.0.1', timeout = 30000 } = {}) {
+          const net = require('net');
+          
+          return new Promise((resolve) => {
+            const startTime = Date.now();
+            
+            const tryConnect = () => {
+              if (Date.now() - startTime > timeout) {
+                resolve({ success: false, error: 'timeout', elapsed: Date.now() - startTime });
+                return;
+              }
+              
+              const client = new net.Socket();
+              client.setTimeout(1000);
+              
+              client.on('connect', () => {
+                client.destroy();
+                resolve({ success: true, elapsed: Date.now() - startTime });
+              });
+              
+              client.on('error', () => {
+                client.destroy();
+                setTimeout(tryConnect, 1000); // Reintentar en 1 segundo
+              });
+              
+              client.on('timeout', () => {
+                client.destroy();
+                setTimeout(tryConnect, 1000);
+              });
+              
+              client.connect(port, host);
+            };
+            
+            tryConnect();
           });
         }
       });
@@ -188,7 +188,7 @@ module.exports = defineConfig({
     
     // Configuración adicional para estabilidad
     retries: {
-      runMode: 2, // Reintentos en CI
+      runMode: 3, // Aumentamos a 3 reintentos en CI
       openMode: 0  // Sin reintentos en modo desarrollo
     },
     

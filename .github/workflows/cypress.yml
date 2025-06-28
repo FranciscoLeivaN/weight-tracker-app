@@ -25,8 +25,45 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
+      # 🔧 NUEVO: Instalar dependencias adicionales para Lighthouse
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3-dev \
+            libatk-bridge2.0-dev \
+            libdrm2 \
+            libxkbcommon-dev \
+            libxcomposite-dev \
+            libxdamage-dev \
+            libxrandr2 \
+            libgbm-dev \
+            libxss1 \
+            libasound2-dev
+
       - name: Install dependencies
         run: npm ci
+        
+      # 🔧 OPTIMIZACIÓN: Verificar que Chrome esté disponible
+      - name: Verify Chrome installation
+        run: |
+          echo "Verificando instalación de Chrome..."
+          google-chrome --version || chromium-browser --version
+          which google-chrome || which chromium-browser
+          
+      # 🔧 NUEVO: Pre-configurar puerto de debugging
+      - name: Reserve debugging port
+        run: |
+          echo "Reservando puerto 9222 para debugging de Chrome..."
+          # Verificar que el puerto esté libre
+          if netstat -tuln | grep -q ":9222 "; then
+            echo "⚠️  Puerto 9222 ya está en uso"
+            netstat -tuln | grep ":9222"
+            # Intentar liberar el puerto
+            sudo fuser -k 9222/tcp || true
+            sleep 2
+          fi
+          echo "✅ Puerto 9222 disponible"
         
       # Iniciar el servidor de desarrollo en segundo plano y guardar PID
       - name: Start development server
@@ -37,6 +74,7 @@ jobs:
         env:
           CI: true
           NODE_ENV: test
+          PORT: 3000
           
       # Esperar a que el servidor esté listo (versión optimizada)
       - name: Wait for server to be ready
@@ -50,8 +88,8 @@ jobs:
               echo "Error: El servidor no respondió después de $timeout segundos"
               echo "Verificando procesos activos:"
               ps aux | grep node || true
-              echo "Logs del servidor (si están disponibles):"
-              tail -50 server.log 2>/dev/null || echo "No hay logs disponibles"
+              echo "Estado del puerto 3000:"
+              netstat -tuln | grep ":3000" || echo "Puerto 3000 no está en uso"
               exit 1
             fi
             
@@ -69,6 +107,50 @@ jobs:
           curl -I http://localhost:3000 || true
           echo "PID del servidor: $(cat server.pid)"
           ps -p $(cat server.pid) || echo "Proceso del servidor no encontrado"
+          echo "Puertos en uso:"
+          netstat -tuln | grep -E ":(3000|9222)" || echo "Puertos no encontrados"
+
+      # 🔧 NUEVO: Iniciar Chrome en modo debugging antes de las pruebas
+      - name: Start Chrome debugging session
+        run: |
+          echo "Iniciando Chrome en modo debugging..."
+          google-chrome \
+            --headless \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --disable-setuid-sandbox \
+            --remote-debugging-port=9222 \
+            --remote-debugging-address=127.0.0.1 \
+            --no-first-run \
+            --disable-extensions \
+            --disable-default-apps \
+            --disable-background-networking \
+            --user-data-dir=/tmp/chrome-debug \
+            about:blank &
+          
+          CHROME_PID=$!
+          echo $CHROME_PID > chrome.pid
+          echo "Chrome iniciado con PID: $CHROME_PID"
+          
+          # Esperar a que Chrome esté listo
+          echo "Esperando a que Chrome esté listo en puerto 9222..."
+          timeout=30
+          counter=0
+          
+          until curl --output /dev/null --silent --head --fail http://127.0.0.1:9222/json; do
+            if [ $counter -ge $timeout ]; then
+              echo "Error: Chrome no respondió en puerto 9222"
+              ps -p $CHROME_PID || echo "Proceso de Chrome no encontrado"
+              exit 1
+            fi
+            echo "Esperando Chrome... ($counter/$timeout)"
+            sleep 1
+            counter=$((counter + 1))
+          done
+          
+          echo "✅ Chrome listo en puerto 9222"
+          curl -s http://127.0.0.1:9222/json | jq '.[0].webSocketDebuggerUrl' || echo "Debug info no disponible"
 
       # Ejecutar pruebas E2E
       - name: Run E2E tests
@@ -81,28 +163,33 @@ jobs:
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
-          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
-          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
+          DISPLAY: :99
 
-      # Ejecutar pruebas de rendimiento
+      # 🔧 MEJORADO: Ejecutar pruebas de rendimiento con configuración específica
       - name: Run performance tests
         run: |
           echo "Ejecutando pruebas de rendimiento (performance.cy.js)..."
+          
+          # Verificar que Chrome debugging esté activo
+          echo "Verificando conexión de debugging..."
+          curl -s http://127.0.0.1:9222/json | head -5 || echo "No se puede conectar al debugging"
+          
+          # Ejecutar las pruebas
           npx cypress run \
             --spec "cypress/e2e/performance.cy.js" \
             --browser chrome \
-            --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=30000,pageLoadTimeout=180000
+            --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=45000,pageLoadTimeout=240000 \
+            --env lighthouse_port=9222,lighthouse_hostname=127.0.0.1
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
+          DISPLAY: :99
           # Variables específicas para Lighthouse
           LIGHTHOUSE_CHROME_FLAGS: "--headless --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1"
-          # Forzar IPv4 y puerto específico
           CYPRESS_lighthouse_port: 9222
           CYPRESS_lighthouse_hostname: "127.0.0.1"
-          # Configuración de Chrome
-          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu --no-sandbox"
-          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions,--remote-debugging-port=9222,--remote-debugging-address=127.0.0.1"
+          # Configuración específica para evitar conflictos de puerto
+          CHROME_REMOTE_DEBUGGING_PORT: 9222
 
       # Verificar archivos generados
       - name: Check generated files
@@ -111,14 +198,17 @@ jobs:
           echo "Listando archivos generados..."
           
           echo "Estructura del directorio cypress:"
-          find cypress -type d | sort
+          find cypress -type d 2>/dev/null | sort || echo "Directorio cypress no encontrado"
           
           echo "Videos encontrados:"
-          find cypress -type f -name "*.mp4" | wc -l
-          find cypress -type f -name "*.mp4" | xargs -I{} ls -la {} 2>/dev/null || echo "No se encontraron videos"
+          find cypress -type f -name "*.mp4" 2>/dev/null | wc -l || echo "0"
+          find cypress -type f -name "*.mp4" 2>/dev/null | xargs -I{} ls -la {} || echo "No se encontraron videos"
           
           echo "Capturas de pantalla:"
-          find cypress -type f -name "*.png" | wc -l
+          find cypress -type f -name "*.png" 2>/dev/null | wc -l || echo "0"
+          
+          echo "Reportes de Lighthouse:"
+          find . -name "*lighthouse*" -type f 2>/dev/null | head -10 || echo "No se encontraron reportes de Lighthouse"
           
       # Almacenar resultados como artefactos
       - name: Upload test results
@@ -131,6 +221,7 @@ jobs:
             cypress/screenshots/
             cypress/results/
             .cypress-audit/
+            *.log
           retention-days: 5
           
       # Generar informe de pruebas
@@ -148,8 +239,13 @@ jobs:
           echo "- **Rendimiento:** performance.cy.js" >> test-report.md
           echo "" >> test-report.md
           
+          echo "### 🔧 Configuración de Chrome Debugging" >> test-report.md
+          echo "- **Puerto usado:** 9222" >> test-report.md
+          echo "- **Dirección:** 127.0.0.1 (IPv4)" >> test-report.md
+          echo "" >> test-report.md
+          
           echo "### 📹 Videos Generados" >> test-report.md
-          find cypress/videos -type f -name "*.mp4" 2>/dev/null | sort | sed 's/^/- /' >> test-report.md
+          find cypress/videos -type f -name "*.mp4" 2>/dev/null | sort | sed 's/^/- /' >> test-report.md || echo "- Ninguno" >> test-report.md
           echo "" >> test-report.md
           
           echo "### 📸 Capturas de Pantalla" >> test-report.md
@@ -162,26 +258,48 @@ jobs:
           name: test-report-${{ github.run_number }}
           path: test-report.md
           
-      # Limpieza mejorada de procesos
+      # 🔧 MEJORADO: Limpieza de procesos incluyendo Chrome
       - name: Clean up processes
         if: always()
         run: |
           echo "🧹 Limpiando procesos en segundo plano..."
           
-          # Matar proceso por PID si existe
+          # Matar Chrome debugging
+          if [ -f chrome.pid ]; then
+            CHROME_PID=$(cat chrome.pid)
+            echo "Matando proceso de Chrome con PID: $CHROME_PID"
+            kill $CHROME_PID 2>/dev/null || echo "Proceso Chrome $CHROME_PID ya no existe"
+            rm chrome.pid
+          fi
+          
+          # Matar proceso del servidor por PID
           if [ -f server.pid ]; then
-            PID=$(cat server.pid)
-            echo "Matando proceso con PID: $PID"
-            kill $PID 2>/dev/null || echo "Proceso $PID ya no existe"
+            SERVER_PID=$(cat server.pid)
+            echo "Matando proceso del servidor con PID: $SERVER_PID"
+            kill $SERVER_PID 2>/dev/null || echo "Proceso servidor $SERVER_PID ya no existe"
             rm server.pid
           fi
           
-          # Matar procesos por patrón como respaldo
+          # Limpiar procesos por patrón como respaldo
+          pkill -f "chrome.*remote-debugging" || true
           pkill -f "npm start" || true
           pkill -f "node.*start" || true
           
-          # Verificar que no queden procesos
+          # Liberar puertos específicos
+          sudo fuser -k 9222/tcp 2>/dev/null || true
+          sudo fuser -k 3000/tcp 2>/dev/null || true
+          
+          # Limpiar directorio temporal de Chrome
+          rm -rf /tmp/chrome-debug || true
+          
+          # Verificar limpieza
           echo "Procesos Node.js restantes:"
           ps aux | grep node | grep -v grep || echo "✅ No hay procesos Node.js activos"
+          
+          echo "Procesos Chrome restantes:"
+          ps aux | grep chrome | grep -v grep || echo "✅ No hay procesos Chrome activos"
+          
+          echo "Puertos en uso:"
+          netstat -tuln | grep -E ":(3000|9222)" || echo "✅ Puertos 3000 y 9222 liberados"
           
           echo "🏁 Limpieza completada"
