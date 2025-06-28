@@ -22,51 +22,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Instala Chrome específicamente para pruebas
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@latest
-        with:
-          chrome-version: stable
-
       # Pruebas unitarias
       - name: Run unit tests with coverage
         run: npm run test:coverage
         env:
           CI: true
 
-      # Instalar wait-on explícitamente
-      - name: Install wait-on
-        run: npm install -g wait-on
-
-      # Iniciar la aplicación en segundo plano con manejo mejorado
-      - name: Start application
-        run: |
-          npm start &
-          echo "Waiting for application to be ready..."
-          wait-on http://localhost:3000 --timeout 120000 --interval 1000 --verbose
-        env:
-          CI: true
-
-      # Ejecutar pruebas E2E (solo weightTracker.cy.js)
-      - name: Run E2E tests
-        run: cypress run --spec "cypress/e2e/weightTracker.cy.js" --browser chrome --headless
+      # Usar la acción oficial de Cypress para ejecutar E2E tests
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          start: npm start
+          wait-on: 'http://localhost:3000'
+          wait-on-timeout: 180
+          browser: chrome
+          spec: cypress/e2e/weightTracker.cy.js
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
+          # Configuraciones específicas para CI
           ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
-        continue-on-error: false # Las pruebas E2E son críticas
-        
-      # Ejecutar pruebas de rendimiento (omitidas en CI)
-      - name: Echo Performance tests skipped
-        run: echo "Performance tests are skipped in CI environment to avoid instability issues"
-      
-      # Terminamos los procesos
-      - name: Cleanup
-        if: always()
-        run: |
-          pkill -f "react-scripts start" || true
-          pkill -f "node" || true
 
       # Almacenamos los resultados como artefactos
       - name: Upload test results
