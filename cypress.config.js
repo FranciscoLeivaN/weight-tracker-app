@@ -40,6 +40,20 @@ module.exports = defineConfig({
           // Manejo especial para entornos CI
           if (isCI) {
             console.log('Lighthouse en CI: aplicando adaptaciones para CI');
+            
+            // Guardar el reporte completo en un archivo
+            const fs = require('fs');
+            const path = require('path');
+            const reportDir = path.join(__dirname, '.cypress-audit');
+            
+            if (!fs.existsSync(reportDir)) {
+              fs.mkdirSync(reportDir, { recursive: true });
+            }
+            
+            const reportPath = path.join(reportDir, `lighthouse-report-${new Date().toISOString().replace(/:/g, '-')}.json`);
+            fs.writeFileSync(reportPath, JSON.stringify(lighthouseReport, null, 2));
+            console.log(`Reporte de Lighthouse guardado en: ${reportPath}`);
+            
             // Añadimos una marca para indicar que se ejecutó en CI
             return {
               ...lighthouseReport,
@@ -48,14 +62,30 @@ module.exports = defineConfig({
           }
           return lighthouseReport;
         }),
+        
+        // Tarea para registrar mensajes en la consola
+        log(message) {
+          console.log(`[CYPRESS LOG] ${message}`);
+          return null;
+        }
       });
     },
     baseUrl: 'http://localhost:3000',
     viewportWidth: 1280,
     viewportHeight: 720,
     // Solucionar problemas de tiempo de espera
-    defaultCommandTimeout: 10000,
-    pageLoadTimeout: 120000,
-    video: true
+    defaultCommandTimeout: 30000,
+    pageLoadTimeout: 180000,
+    // Configuración de video y resultados
+    video: true,
+    videoCompression: false,
+    trashAssetsBeforeRuns: false,
+    screenshotOnRunFailure: true,
+    videosFolder: 'cypress/videos',
+    // Configuración para generar reportes
+    reporter: 'spec',
+    reporterOptions: {
+      toConsole: true
+    }
   },
 });

@@ -27,37 +27,60 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        
+      - name: Create results directory
+        run: |
+          mkdir -p cypress/results
+          mkdir -p .cypress-audit
 
-      # Paso 1: Ejecutar las pruebas E2E
-      - name: Cypress run E2E tests
+      # Ejecutar todas las pruebas (E2E y rendimiento) en un solo paso con Cypress
+      - name: Cypress run all tests (E2E and Performance)
         uses: cypress-io/github-action@v6
         with:
           start: npm start
           wait-on: 'http://localhost:3000'
           wait-on-timeout: 180
           browser: chrome
-          spec: cypress/e2e/weightTracker.cy.js
-          config: video=true,screenshotOnRunFailure=true
+          spec: "cypress/e2e/*.cy.js"
+          config: >-
+            video=true,
+            videoCompression=false,
+            screenshotOnRunFailure=true,
+            videoRecording=true,
+            videosFolder=cypress/videos
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
           # Configuraciones específicas para CI
           ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
-          
-      # Paso 2: Ejecutar pruebas de rendimiento con Lighthouse (umbrales adaptados para CI)
-      - name: Run Lighthouse performance tests
-        run: npm run test:ci:performance
-        env:
-          CI: true
 
       # Almacenamos los resultados como artefactos
-      - name: Upload E2E test results
+      - name: Upload all test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-e2e-results
+          name: cypress-all-results
           path: |
             cypress/videos/
             cypress/screenshots/
+            cypress/results/
+            .cypress-audit/
           retention-days: 5
+          
+      # Generar un informe de pruebas completo
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "## Resultados de las pruebas" > test-report.md
+          echo "### Pruebas E2E y de Rendimiento" >> test-report.md
+          echo "- Los resultados completos están disponibles en los artefactos de la ejecución" >> test-report.md
+          find cypress/videos -type f | sort >> test-report.md
+          
+      # Subir el informe como artefacto
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: test-report.md

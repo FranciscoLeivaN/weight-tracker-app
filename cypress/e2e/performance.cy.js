@@ -29,9 +29,16 @@ const thresholds = {
 describe('Pruebas de Rendimiento con Lighthouse', () => {
   beforeEach(() => {
     cy.visit('/');
+    
+    // Registrar información de entorno
     if (isCI) {
       cy.log('Ejecutando en entorno CI: umbrales adaptados');
+    } else {
+      cy.log('Ejecutando en entorno local con umbrales estándar');
     }
+    
+    // Crear un registro más visible
+    cy.task('log', `Iniciando pruebas de rendimiento con Lighthouse - Entorno: ${isCI ? 'CI' : 'Local'}`);
   });
 
   it('debería pasar la auditoría de Lighthouse para la página principal', () => {
