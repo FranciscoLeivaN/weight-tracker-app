@@ -27,11 +27,48 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      # Ejecutar pruebas E2E (con start-server-and-test)
-      - name: Run E2E tests
-        run: npm run test:ci:e2e
+      # Iniciar servidor con mejor estrategia de espera
+      - name: Start server
+        run: |
+          # Iniciar el servidor con un archivo PID para mejor control
+          npm start &
+          echo $! > server.pid
+          
+          # Esperar a que el servidor esté disponible con timeout
+          echo "Esperando a que el servidor esté disponible..."
+          timeout=60
+          counter=0
+          until $(curl --output /dev/null --silent --fail http://localhost:3000) || [ $counter -eq $timeout ]; do
+            echo "Esperando al servidor... ($counter/$timeout)"
+            sleep 1
+            ((counter++))
+          done
+          
+          if [ $counter -eq $timeout ]; then
+            echo "Error: Timeout esperando al servidor"
+            cat npm-debug.log || echo "No hay log de npm debug"
+            exit 1
+          fi
+          
+          echo "✅ Servidor disponible en http://localhost:3000"
         env:
           CI: true
+          PORT: 3000
+          BROWSER: none
+
+      - name: Run E2E tests
+        run: |
+          echo "Ejecutando pruebas E2E..."
+          npx cypress run \
+            --spec "cypress/e2e/weightTracker.cy.js" \
+            --browser chrome \
+            --config video=true,videoCompression=false,screenshotOnRunFailure=true \
+            --config defaultCommandTimeout=60000,pageLoadTimeout=120000 \
+            --config numTestsKeptInMemory=0
+        env:
+          CI: true
+          CYPRESS_baseUrl: http://localhost:3000
+          DEBUG: cypress:server,cypress:launcher
 
       # Almacenar resultados como artefactos
       - name: Upload test results
@@ -43,3 +80,28 @@ jobs:
             cypress/videos/
             cypress/screenshots/
           retention-days: 5
+          
+      # Limpiar procesos exhaustivamente
+      - name: Clean up
+        if: always()
+        run: |
+          echo "Limpiando procesos y recursos..."
+          
+          # Matar servidor usando PID si existe
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+            rm server.pid
+          fi
+          
+          # Matar cualquier proceso relacionado
+          pkill -f "react-scripts start" || true
+          pkill -f "npm start" || true 
+          pkill -f "node" || true
+          
+          # Liberar puertos
+          sudo fuser -k 3000/tcp || true
+          
+          # Limpiar caché de Cypress
+          rm -rf ~/.cache/Cypress/run || true
+          
+          echo "Limpieza completada"

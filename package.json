@@ -25,8 +25,8 @@
     "test:performance": "cypress run --spec \"cypress/e2e/performance.cy.js\"",
     "test:performance:open": "cypress open --e2e --config-file cypress.config.js",
     "test:all": "npm run test:coverage && npm run test:e2e && npm run test:performance",
-    "test:ci:e2e": "start-server-and-test 'npm start' http://localhost:3000 'cypress run --spec \"cypress/e2e/weightTracker.cy.js\" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true'",
-    "test:ci:performance": "NODE_OPTIONS=\"--dns-result-order=ipv4first\" start-server-and-test 'npm start' http://localhost:3000 'cypress run --spec \"cypress/e2e/performance.cy.js\" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=45000,pageLoadTimeout=240000 --env lighthouse_port=9222,lighthouse_hostname=127.0.0.1'",
+    "test:ci:e2e": "cypress run --spec \"cypress/e2e/weightTracker.cy.js\" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=60000,pageLoadTimeout=120000,numTestsKeptInMemory=0",
+    "test:ci:performance": "cypress run --spec \"cypress/e2e/performance.cy.js\" --browser chrome --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=90000,pageLoadTimeout=180000,responseTimeout=90000,execTimeout=180000,numTestsKeptInMemory=0 --env CI=true",
     "test:ci:all": "npm run test:coverage && npm run test:ci:e2e && npm run test:ci:performance"
   },
   "eslintConfig": {

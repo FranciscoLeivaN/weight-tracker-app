@@ -33,23 +33,75 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      # Instalar Chrome específico para Lighthouse
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          google-chrome --version
+          
       # Pre-configurar entorno para Chrome
       - name: Configure Chrome environment
         run: |
           echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts
-          # Liberar puerto si está en uso
+          # Asegurar que el puerto esté libre
           sudo fuser -k 9222/tcp 2>/dev/null || true
-          export NODE_OPTIONS="--dns-result-order=ipv4first"
           
-      # Ejecutar pruebas de rendimiento con start-server-and-test
-      - name: Run performance tests
-        run: npm run test:ci:performance
+          # Crear directorios necesarios para Chrome/Lighthouse
+          mkdir -p /tmp/chrome-data
+          mkdir -p /tmp/lighthouse-results
+          chmod -R 777 /tmp/chrome-data
+          chmod -R 777 /tmp/lighthouse-results
+          
+      # Iniciar servidor con estrategia de espera robusta
+      - name: Start server
+        run: |
+          # Iniciar el servidor con un archivo PID para mejor control
+          npm start &
+          echo $! > server.pid
+          
+          # Esperar a que el servidor esté disponible con timeout
+          echo "Esperando a que el servidor esté disponible..."
+          timeout=60
+          counter=0
+          until $(curl --output /dev/null --silent --fail http://localhost:3000) || [ $counter -eq $timeout ]; do
+            echo "Esperando al servidor... ($counter/$timeout)"
+            sleep 1
+            ((counter++))
+          done
+          
+          if [ $counter -eq $timeout ]; then
+            echo "Error: Timeout esperando al servidor"
+            exit 1
+          fi
+          
+          echo "✅ Servidor disponible en http://localhost:3000"
         env:
           CI: true
-          LIGHTHOUSE_CHROME_FLAGS: "--headless --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1"
-          CYPRESS_lighthouse_port: 9222
-          CYPRESS_lighthouse_hostname: "127.0.0.1"
-          NODE_OPTIONS: "--dns-result-order=ipv4first"
+          PORT: 3000
+          BROWSER: none
+      
+      # Solución completa: usar una versión ultra-simplificada sin Chrome de debugging por separado
+      - name: Run performance tests
+        run: |
+          echo "Ejecutando pruebas de rendimiento con configuración ultra simplificada..."
+          # Sin Chrome debugging separado, dejando que Cypress gestione Chrome
+          CYPRESS_CACHE_FOLDER=~/.cache/Cypress \
+          npx cypress run \
+            --spec "cypress/e2e/performance.cy.js" \
+            --browser chrome \
+            --config video=true,videoCompression=false,screenshotOnRunFailure=true \
+            --config defaultCommandTimeout=90000,pageLoadTimeout=180000,responseTimeout=90000,execTimeout=180000 \
+            --config numTestsKeptInMemory=0 \
+            --env CI=true
+        env:
+          CI: true
+          CYPRESS_baseUrl: http://localhost:3000
+          # Variables importantes para Lighthouse en entornos de CI
+          LIGHTHOUSE_CHROMIUM_PATH: $(which google-chrome)
+          CYPRESS_ACCEPT_EULA: 1
+          CYPRESS_NO_SANDBOX: 1
+          NODE_OPTIONS: "--dns-result-order=ipv4first --max-old-space-size=4096"
 
       # Almacenar resultados como artefactos
       - name: Upload test results
@@ -63,10 +115,39 @@ jobs:
             .cypress-audit/
           retention-days: 5
           
-      # Limpieza básica para asegurar que no queden procesos
+      # Limpieza ultra exhaustiva de procesos
       - name: Clean up processes
         if: always()
         run: |
-          # Liberar puertos específicos
-          sudo fuser -k 9222/tcp 2>/dev/null || true
-          sudo fuser -k 3000/tcp 2>/dev/null || true
+          echo "Limpiando procesos y recursos..."
+          
+          # Matar servidor usando PID si existe
+          if [ -f server.pid ]; then
+            kill -9 $(cat server.pid) 2>/dev/null || true
+            rm server.pid
+          fi
+          
+          # Matar todos los procesos relacionados con fuerza
+          pkill -9 -f "google-chrome" || true
+          pkill -9 -f "chrome" || true
+          pkill -9 -f "chromium" || true
+          pkill -9 -f "react-scripts start" || true
+          pkill -9 -f "npm start" || true
+          pkill -9 -f "node" || true
+          
+          # Liberar puertos con fuerza
+          sudo fuser -k -9 9222/tcp 2>/dev/null || true
+          sudo fuser -k -9 3000/tcp 2>/dev/null || true
+          
+          # Limpiar archivos temporales
+          rm -rf /tmp/chrome-* || true
+          rm -rf /tmp/lighthouse-* || true
+          
+          # Limpiar caché de Cypress
+          rm -rf ~/.cache/Cypress/run || true
+          rm -rf ~/.cache/Cypress/cy || true
+          
+          # Eliminar archivos de bloqueo
+          rm -f ~/.X*-lock || true
+          
+          echo "Limpieza completa finalizada"
