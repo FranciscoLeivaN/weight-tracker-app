@@ -33,6 +33,15 @@ Ejecuta todas las pruebas de Cypress en modo headless (sin interfaz gráfica).\
 Útil para integración continua o para ejecutar todas las pruebas rápidamente.\
 **IMPORTANTE**: Asegúrate de tener la aplicación en ejecución con `npm start` antes de usar este comando.
 
+### Ejecución de pruebas paso a paso
+
+Para ejecutar las pruebas E2E correctamente:
+1. Ejecuta `npm start` en una terminal
+2. Espera a que la aplicación se cargue completamente
+3. En otra terminal, ejecuta `npm run test:e2e` o `npm run cypress:open`
+
+Ver más detalles en el archivo `cypress/README.md`.
+
 ### `npm run build`
 
 Builds the app for production to the `build` folder.\
@@ -63,17 +72,40 @@ You don't have to ever use `eject`. The curated feature set is suitable for smal
 
 ## Pruebas
 
-El proyecto incluye tres niveles de pruebas:
+El proyecto incluye una estrategia completa de pruebas:
 
 ### Pruebas Unitarias (Jest)
 
 Las pruebas unitarias verifican componentes y funciones individuales en aislamiento.
 Se encuentran en `src/__tests__/` y se pueden ejecutar con `npm test`.
 
+Para generar informes de cobertura:
+```
+npm run test:coverage
+```
+
 ### Pruebas Funcionales (Cypress)
 
 Las pruebas end-to-end verifican la aplicación completa simulando la interacción del usuario.
 Se encuentran en `cypress/e2e/` y se pueden ejecutar con `npm run cypress:open`.
+
+### Documentación Detallada de Pruebas
+
+- Ver `docs/running-tests.md` para instrucciones detalladas paso a paso
+- Ver `cypress/README.md` para detalles específicos de las pruebas de Cypress
+- Ver `docs/regression-testing-strategy.md` para la estrategia de pruebas de regresión
+
+### Pruebas de Regresión Automatizadas
+
+Utilizamos GitHub Actions como herramienta de Integración Continua para ejecutar automáticamente todas las pruebas cada vez que se hace un push al repositorio, asegurando que no se introduzcan regresiones.
+
+- Configuraciones en `.github/workflows/`
+- Estrategia detallada en `docs/regression-testing-strategy.md`
+
+Para ejecutar todas las pruebas localmente:
+```
+npm run test:all
+```
 
 ## Más Información
 

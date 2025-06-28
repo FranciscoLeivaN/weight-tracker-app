@@ -30,27 +30,40 @@ Este directorio contiene las pruebas end-to-end para la aplicación de Seguimien
 
 **IMPORTANTE**: Cypress necesita que la aplicación esté en ejecución para realizar las pruebas.
 
-1. Primero, inicia la aplicación en modo desarrollo:
+### Instrucciones paso a paso (modo local)
+
+1. **Inicia la aplicación** en modo desarrollo:
    ```
    npm start
    ```
 
-2. Espera a que la aplicación esté completamente cargada (cuando veas "Compiled successfully" en la terminal)
+2. **Espera** a que la aplicación esté completamente cargada (cuando veas "Compiled successfully" en la terminal)
 
-3. En una nueva terminal, abre Cypress con interfaz gráfica:
-   ```
-   npm run cypress:open
-   ```
-   o
-   ```
-   npm run test:e2e:open
-   ```
+3. **Abre una nueva terminal** (manteniendo la primera en ejecución) y ejecuta:
+   - Para interfaz gráfica de Cypress:
+     ```
+     npm run test:e2e:open
+     ```
+     o
+     ```
+     npm run cypress:open
+     ```
 
-4. Para ejecutar todas las pruebas en modo headless (también necesita que la aplicación esté ejecutándose):
-   ```
-   npm run cypress:run
-   ```
-   o
-   ```
-   npm run test:e2e
-   ```
+   - Para ejecutar pruebas en modo headless (sin interfaz gráfica):
+     ```
+     npm run test:e2e
+     ```
+     o
+     ```
+     npm run cypress:run
+     ```
+
+### Nota sobre integración continua
+
+La configuración de GitHub Actions ya está configurada para ejecutar automáticamente tanto el servidor como las pruebas en secuencia. El archivo de configuración `.github/workflows/e2e-tests.yml` utiliza la acción oficial de Cypress que:
+
+1. Inicia automáticamente el servidor
+2. Espera a que esté disponible
+3. Ejecuta todas las pruebas de Cypress
+
+No es necesario realizar ninguna acción manual para la ejecución de pruebas en el entorno de CI.

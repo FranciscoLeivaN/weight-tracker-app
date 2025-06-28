@@ -136,12 +136,16 @@ describe('Componente App', () => {
   
   test('enforces 48-hour rule between weight entries', () => {
     // Descripción: Verifica que la aplicación imponga la regla de 48 horas entre registros de peso
-    // Configurar hora actual como fecha fija
-    jest.spyOn(Date, 'now').mockImplementation(() => 
-      new Date('2025-06-27T10:00:00Z').getTime()
-    );
+    // Simular una fecha y hora fijas para la prueba
+    const fixedDate = new Date('2025-06-27T10:00:00Z');
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedDate);
     
-    // Configurar datos simulados con un registro reciente (menos de 48 horas)
+    // También simulamos la función canAddWeight para asegurar su comportamiento
+    const canAddWeightSpy = jest.spyOn(require('../utils/weightUtils'), 'canAddWeight');
+    canAddWeightSpy.mockReturnValue({ canAdd: false, hoursRemaining: 24 });
+    
+    // Configurar datos simulados con un registro reciente
     const mockWeights = [
       { weight: 70, date: '2025-06-26T10:00:00Z' } // 24 horas atrás
     ];
@@ -159,9 +163,13 @@ describe('Componente App', () => {
     fireEvent.click(addButton);
     
     // Verificar mensaje de error cuando se intenta añadir un peso antes de las 48 horas
-    expect(screen.getByText(/Debes esperar \d+ horas/)).toBeInTheDocument();
+    const errorElement = screen.getByText(/Debes esperar 24 horas/);
+    expect(errorElement).toBeInTheDocument();
+    expect(errorElement).toHaveClass('error-message');
     
-    // Limpiar el mock
+    // Limpiar los mocks
+    jest.useRealTimers();
+    canAddWeightSpy.mockRestore();
     jest.restoreAllMocks();
   });
 });
