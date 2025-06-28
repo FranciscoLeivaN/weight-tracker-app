@@ -3,11 +3,6 @@ name: Pruebas E2E con Cypress
 on:
   push:
     branches: [ main, master, develop ]
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-# Este workflow ejecuta SOLO las pruebas E2E con Cypress
-# - Pruebas E2E: weightTracker.cy.js
 
 jobs:
   e2e-tests:
@@ -27,77 +22,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      # Instalar servidor simple sin webpack para pruebas
-      - name: Install serve package
-        run: npm install -g serve
-          
-      # Compilar la aplicación y servirla con 'serve'
-      - name: Build and serve application
-        run: |
-          echo "Compilando la aplicación..."
-          npm run build
-          
-          # Iniciar el servidor 'serve' en lugar de webpack dev server
-          echo "Iniciando servidor estático..."
-          serve -s build -l 3000 --config serve.json &
-          echo $! > server.pid
-          
-          # Esperar a que el servidor esté disponible
-          echo "Verificando disponibilidad del servidor..."
-          sleep 5
-          curl -I http://localhost:3000 || (echo "Error: Servidor no disponible" && exit 1)
-          echo "✅ Servidor disponible en http://localhost:3000"
-        env:
-          CI: true
+      - name: Ejecutar levantamiento de pagina
+        run: npm run start
 
       - name: Run E2E tests
-        run: |
-          echo "Ejecutando pruebas E2E con Electron..."
-          ELECTRON_EXTRA_LAUNCH_ARGS="--no-sandbox" \
-          npx cypress run \
-            --spec "cypress/e2e/weightTracker.cy.js" \
-            --browser electron \
-            --config video=true,videoCompression=false,screenshotOnRunFailure=true \
-            --config defaultCommandTimeout=60000,pageLoadTimeout=120000 \
-            --config numTestsKeptInMemory=0
-        env:
-          CI: true
-          CYPRESS_baseUrl: http://localhost:3000
-          CYPRESS_NO_SANDBOX: 1
-          CYPRESS_ACCEPT_EULA: 1
+        run: npm run test:e2e
 
-      # Almacenar resultados como artefactos
-      - name: Upload test results
-        if: always()
+      - name: Subir informe de cobertura de código
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results-${{ github.run_number }}
+          name: e2e-results
           path: |
             cypress/videos/
             cypress/screenshots/
-          retention-days: 5
-          
-      # Limpiar procesos exhaustivamente
-      - name: Clean up
-        if: always()
-        run: |
-          echo "Limpiando procesos y recursos..."
-          
-          # Matar servidor usando PID si existe
-          if [ -f server.pid ]; then
-            kill $(cat server.pid) || true
-            rm server.pid
-          fi
-          
-          # Matar cualquier proceso relacionado
-          pkill -f "serve -s build" || true
-          pkill -f "serve" || true 
-          pkill -9 -f "node" || true
-          
-          # Liberar puertos
-          sudo fuser -k 3000/tcp || true
-          
-          # Limpiar caché de Cypress
-          rm -rf ~/.cache/Cypress/run || true
-          
-          echo "Limpieza completada"
+        

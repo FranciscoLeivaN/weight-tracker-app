@@ -1,123 +1,31 @@
 const { defineConfig } = require("cypress");
-// Removida dependencia de cypress-audit para simplificar
 
 module.exports = defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
-      // Configuración para cypress-audit (Lighthouse)
+      // Configuración básica del navegador
       on("before:browser:launch", (browser = {}, launchOptions) => {
         const isCI = process.env.CI === 'true' || process.env.CI === true;
         console.log(`Entorno detectado: ${isCI ? 'CI' : 'Local'}`);
         
-        // Para Chrome/Chromium - Configuración ULTRA simplificada
-        if (browser.name === "chrome" || browser.name === "chromium") {
-          console.log(`Configurando Chrome/Chromium para entorno: ${isCI ? 'CI' : 'Local'}`);
-          
-          // Solo flags esenciales para estabilidad
-          launchOptions.args.push('--disable-dev-shm-usage');
-          launchOptions.args.push('--disable-web-security');
-          
-          // Configuraciones básicas para CI
-          if (isCI) {
-            console.log('Aplicando configuraciones mínimas para CI');
-            
-            // Solo flags críticos
-            launchOptions.args.push('--headless');
-            launchOptions.args.push('--disable-gpu');
-            launchOptions.args.push('--no-sandbox');
-            launchOptions.args.push('--mute-audio');
-            
-            console.log('✅ Configuración mínima para CI aplicada');
-          }
+        // Agregar flags de estabilidad para todos los navegadores
+        launchOptions.args = launchOptions.args || [];
+        launchOptions.args.push('--disable-dev-shm-usage');
+        
+        // En entorno CI
+        if (isCI) {
+          launchOptions.args.push('--no-sandbox');
+          launchOptions.args.push('--mute-audio');
         }
         
         return launchOptions;
       });
 
       on("task", {
-        // Solo tareas básicas para logging
-        log(message) {
-          console.log(`[CYPRESS LOG] ${message}`);
-          return null;
-        },
-        
         // Tarea para registrar mensajes en la consola
         log(message) {
           console.log(`[CYPRESS LOG] ${message}`);
           return null;
-        },
-        
-        // Tarea mejorada para verificar conectividad con timeout más largo
-        checkConnection() {
-          const net = require('net');
-          
-          return new Promise((resolve) => {
-            const client = new net.Socket();
-            
-            client.setTimeout(10000); // Aumentamos timeout a 10 segundos
-            
-            client.on('connect', () => {
-              console.log('✅ Conexión al puerto de debugging exitosa');
-              client.destroy();
-              resolve({ connected: true, port: 9222 });
-            });
-            
-            client.on('error', (err) => {
-              console.log('❌ Error de conexión:', err.message);
-              resolve({ connected: false, error: err.message });
-            });
-            
-            client.on('timeout', () => {
-              console.log('⏰ Timeout de conexión');
-              client.destroy();
-              resolve({ connected: false, error: 'timeout' });
-            });
-            
-            try {
-              client.connect(9222, '127.0.0.1');
-            } catch (error) {
-              console.log('❌ Error iniciando conexión:', error.message);
-              resolve({ connected: false, error: error.message });
-            }
-          });
-        },
-        
-        // Nueva tarea para esperar que el puerto esté disponible
-        waitForPort({ port = 9222, host = '127.0.0.1', timeout = 30000 } = {}) {
-          const net = require('net');
-          
-          return new Promise((resolve) => {
-            const startTime = Date.now();
-            
-            const tryConnect = () => {
-              if (Date.now() - startTime > timeout) {
-                resolve({ success: false, error: 'timeout', elapsed: Date.now() - startTime });
-                return;
-              }
-              
-              const client = new net.Socket();
-              client.setTimeout(1000);
-              
-              client.on('connect', () => {
-                client.destroy();
-                resolve({ success: true, elapsed: Date.now() - startTime });
-              });
-              
-              client.on('error', () => {
-                client.destroy();
-                setTimeout(tryConnect, 1000); // Reintentar en 1 segundo
-              });
-              
-              client.on('timeout', () => {
-                client.destroy();
-                setTimeout(tryConnect, 1000);
-              });
-              
-              client.connect(port, host);
-            };
-            
-            tryConnect();
-          });
         }
       });
     },
@@ -152,10 +60,7 @@ module.exports = defineConfig({
       openMode: 0  // Sin reintentos en modo desarrollo
     },
     
-    // Variables de entorno específicas
-    env: {
-      lighthouse_port: 9222,
-      lighthouse_hostname: '127.0.0.1'
-    }
+    // Variables de entorno para E2E
+    env: {}
   },
 });

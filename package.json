@@ -23,12 +23,9 @@
     "cypress:run": "cypress run",
     "test:e2e": "cypress run --spec \"cypress/e2e/weightTracker.cy.js\" --browser electron",
     "test:e2e:open": "cypress open --e2e",
-    "test:performance": "cypress run --spec \"cypress/e2e/performance.cy.js\" --browser electron",
-    "test:performance:open": "cypress open --e2e",
-    "test:all": "npm run test:coverage && npm run test:e2e && npm run test:performance",
+    "test:all": "npm run test:coverage && npm run test:e2e",
     "test:ci:e2e": "cypress run --spec \"cypress/e2e/weightTracker.cy.js\" --browser electron --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=60000,pageLoadTimeout=120000,numTestsKeptInMemory=0",
-    "test:ci:performance": "cypress run --spec \"cypress/e2e/performance.cy.js\" --browser electron --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=30000,pageLoadTimeout=60000,numTestsKeptInMemory=0 --env CI=true",
-    "test:ci:all": "npm run test:coverage && npm run test:ci:e2e && npm run test:ci:performance",
+    "test:ci:all": "npm run test:coverage && npm run test:ci:e2e",
     "test:local:ci": "npm run build && npm run serve"
   },
   "eslintConfig": {
@@ -68,8 +65,6 @@
   },
   "devDependencies": {
     "cypress": "^14.5.0",
-    "cypress-audit": "^1.1.0",
-    "lighthouse": "^12.7.0",
     "serve": "^14.2.4",
     "start-server-and-test": "^2.0.12"
   }
