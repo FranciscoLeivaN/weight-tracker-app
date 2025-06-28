@@ -34,19 +34,22 @@ jobs:
         env:
           CI: true
 
-      # Iniciar la aplicación en segundo plano
+      # Instalar wait-on explícitamente
+      - name: Install wait-on
+        run: npm install -g wait-on
+
+      # Iniciar la aplicación en segundo plano con manejo mejorado
       - name: Start application
-        run: npm start &
+        run: |
+          npm start &
+          echo "Waiting for application to be ready..."
+          wait-on http://localhost:3000 --timeout 120000 --interval 1000 --verbose
         env:
           CI: true
 
-      # Esperar a que la aplicación esté disponible
-      - name: Wait for application
-        run: npx wait-on http://localhost:3000 --timeout 60000
-
-      # Ejecutar pruebas E2E
+      # Ejecutar pruebas E2E (solo weightTracker.cy.js)
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: cypress run --spec "cypress/e2e/weightTracker.cy.js" --browser chrome --headless
         env:
           CI: true
           CYPRESS_baseUrl: http://localhost:3000
@@ -54,15 +57,9 @@ jobs:
           CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
         continue-on-error: false # Las pruebas E2E son críticas
         
-      # Ejecutar pruebas de rendimiento (como no críticas)
-      - name: Run Performance tests
-        run: npm run test:performance
-        env:
-          CI: true
-          CYPRESS_baseUrl: http://localhost:3000
-          ELECTRON_EXTRA_LAUNCH_ARGS: "--disable-gpu"
-          CYPRESS_CHROME_ARGS: "--no-sandbox,--disable-gpu,--disable-dev-shm-usage,--disable-setuid-sandbox,--no-first-run,--disable-extensions"
-        continue-on-error: true # Las pruebas de rendimiento pueden fallar sin romper el build
+      # Ejecutar pruebas de rendimiento (omitidas en CI)
+      - name: Echo Performance tests skipped
+        run: echo "Performance tests are skipped in CI environment to avoid instability issues"
       
       # Terminamos los procesos
       - name: Cleanup

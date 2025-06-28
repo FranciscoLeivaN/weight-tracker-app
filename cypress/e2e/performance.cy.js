@@ -58,5 +58,3 @@ describe('Pruebas de Rendimiento con Lighthouse', () => {
     });
   });
 });
-  });
-});
