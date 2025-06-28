@@ -1,26 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import './App.css'; // Puedes crear un archivo CSS simple
+import { 
+  canAddWeight, 
+  createWeightEntry, 
+  loadWeights, 
+  saveWeights 
+} from './utils/weightUtils';
 
 function App() {
   const [weights, setWeights] = useState([]);
   const [currentWeight, setCurrentWeight] = useState('');
+  const [userName, setUserName] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   // Cargar pesos desde localStorage al iniciar
   useEffect(() => {
-    const storedWeights = JSON.parse(localStorage.getItem('userWeights'));
-    if (storedWeights) {
-      setWeights(storedWeights);
+    setWeights(loadWeights());
+    
+    // Cargar nombre de usuario desde localStorage para sugerirlo como valor default
+    const storedUserName = localStorage.getItem('userName');
+    if (storedUserName) {
+      setUserName(storedUserName);
     }
   }, []);
 
   // Guardar pesos en localStorage cada vez que cambian
   useEffect(() => {
-    localStorage.setItem('userWeights', JSON.stringify(weights));
+    if (weights.length > 0) {
+      saveWeights(weights);
+    }
   }, [weights]);
 
   const handleWeightChange = (e) => {
     setCurrentWeight(e.target.value);
+  };
+  
+  const handleUserNameChange = (e) => {
+    setUserName(e.target.value);
+    // Guardamos inmediatamente como valor por defecto
+    if (e.target.value.trim()) {
+      localStorage.setItem('userName', e.target.value);
+    }
   };
 
   const addWeightEntry = () => {
@@ -29,25 +49,26 @@ function App() {
       return;
     }
 
-    const newWeight = parseFloat(currentWeight);
-    const newEntry = { weight: newWeight, date: new Date().toISOString() };
-
     // Validación de 48 horas
-    if (weights.length > 0) {
-      const lastEntryDate = new Date(weights[weights.length - 1].date);
-      const now = new Date();
-      const timeDiff = now.getTime() - lastEntryDate.getTime();
-      const hoursDiff = timeDiff / (1000 * 60 * 60);
-
-      if (hoursDiff < 48) {
-        setErrorMessage(`Debes esperar ${Math.ceil(48 - hoursDiff)} horas más para registrar un nuevo peso.`);
-        return;
-      }
+    const { canAdd, hoursRemaining } = canAddWeight(weights);
+    
+    if (!canAdd) {
+      setErrorMessage(`Debes esperar ${hoursRemaining} horas más para registrar un nuevo peso.`);
+      return;
     }
-
-    setWeights([...weights, newEntry]);
-    setCurrentWeight('');
-    setErrorMessage('');
+    
+    try {
+      const newEntry = createWeightEntry(currentWeight, userName);
+      setWeights([...weights, newEntry]);
+      setCurrentWeight('');
+      setErrorMessage('');
+      // Guardamos el nombre para futuros registros
+      if (userName.trim()) {
+        localStorage.setItem('userName', userName);
+      }
+    } catch (error) {
+      setErrorMessage('Error al crear el registro: ' + error.message);
+    }
   };
 
   const clearAllWeights = () => {
@@ -58,7 +79,14 @@ function App() {
   return (
     <div className="App">
       <h1>Registro de Peso</h1>
+      
       <div className="input-section">
+        <input
+          type="text"
+          placeholder="Nombre de usuario"
+          value={userName}
+          onChange={handleUserNameChange}
+        />
         <input
           type="number"
           placeholder="Ingresa tu peso (kg)"
@@ -78,6 +106,7 @@ function App() {
         <ul>
           {weights.map((entry, index) => (
             <li key={index}>
+              {entry.userName && <span className="user-name">Usuario: {entry.userName} - </span>}
               Peso: {entry.weight} kg - Fecha: {new Date(entry.date).toLocaleString()}
             </li>
           ))}

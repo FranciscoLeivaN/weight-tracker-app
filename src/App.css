@@ -16,6 +16,19 @@ h2 {
   margin-top: 2rem;
 }
 
+h3 {
+  color: #16a085;
+  margin: 1rem 0;
+}
+
+.user-section {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e9ecef;
+}
+
 .input-section {
   display: flex;
   flex-wrap: wrap;
@@ -77,4 +90,9 @@ li {
 
 li:hover {
   background-color: #f0f0f0;
+}
+
+.user-name {
+  font-weight: 500;
+  color: #16a085;
 }
