@@ -1,0 +1,72 @@
+name: Pruebas de Rendimiento con Lighthouse
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Este workflow ejecuta SOLO las pruebas de rendimiento con Lighthouse/Cypress-Audit
+# - Pruebas de rendimiento: performance.cy.js (con umbrales adaptados para CI)
+
+jobs:
+  performance-tests:
+    name: Ejecutar pruebas de rendimiento
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # Instalar dependencias del sistema necesarias para Chrome/Lighthouse
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3-dev libgbm-dev
+
+      - name: Install dependencies
+        run: npm ci
+        
+      # Pre-configurar entorno para Chrome
+      - name: Configure Chrome environment
+        run: |
+          echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts
+          # Liberar puerto si está en uso
+          sudo fuser -k 9222/tcp 2>/dev/null || true
+          export NODE_OPTIONS="--dns-result-order=ipv4first"
+          
+      # Ejecutar pruebas de rendimiento con start-server-and-test
+      - name: Run performance tests
+        run: npm run test:ci:performance
+        env:
+          CI: true
+          LIGHTHOUSE_CHROME_FLAGS: "--headless --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1"
+          CYPRESS_lighthouse_port: 9222
+          CYPRESS_lighthouse_hostname: "127.0.0.1"
+          NODE_OPTIONS: "--dns-result-order=ipv4first"
+
+      # Almacenar resultados como artefactos
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results-${{ github.run_number }}
+          path: |
+            cypress/videos/
+            cypress/screenshots/
+            .cypress-audit/
+          retention-days: 5
+          
+      # Limpieza básica para asegurar que no queden procesos
+      - name: Clean up processes
+        if: always()
+        run: |
+          # Liberar puertos específicos
+          sudo fuser -k 9222/tcp 2>/dev/null || true
+          sudo fuser -k 3000/tcp 2>/dev/null || true

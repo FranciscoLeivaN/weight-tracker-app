@@ -1,69 +1,98 @@
-# Instrucciones para Ejecutar Pruebas de Regresión
+# Instrucciones para Ejecutar Pruebas Automatizadas
 
-Este documento proporciona instrucciones detalladas para ejecutar tanto las pruebas unitarias como las pruebas end-to-end (E2E) en tu entorno local.
+Este documento proporciona instrucciones detalladas para ejecutar los tres tipos de pruebas automatizadas: unitarias, end-to-end (E2E) y rendimiento.
 
 ## 1. Pruebas Unitarias
 
 ### Ejecutar pruebas unitarias en modo interactivo
-```
+```bash
 npm test
 ```
 Este comando inicia el ejecutor de pruebas de Jest en modo interactivo, que observa cambios en los archivos y vuelve a ejecutar las pruebas automáticamente.
 
 ### Ejecutar pruebas unitarias con informe de cobertura
-```
+```bash
 npm run test:coverage
 ```
 Este comando ejecuta todas las pruebas unitarias una vez y genera un informe de cobertura de código en la carpeta `/coverage`.
 
 ## 2. Pruebas End-to-End (E2E)
 
-Las pruebas E2E requieren que la aplicación esté en ejecución. Sigue estos pasos:
-
-### Paso 1: Inicia la aplicación
+### Opción 1: Ejecución completa (servidor y pruebas automatizadas)
+```bash
+npm run test:ci:e2e
 ```
+Este comando inicia automáticamente el servidor, espera a que esté disponible, ejecuta las pruebas y cierra el servidor al terminar.
+
+### Opción 2: Ejecución manual separada
+
+#### Paso 1: Inicia la aplicación
+```bash
 npm start
 ```
 Espera hasta que veas "Compiled successfully" y la URL http://localhost:3000 esté disponible.
 
-### Paso 2: Abre una nueva terminal (mantén la primera ejecutándose)
+#### Paso 2: Abre una nueva terminal (mantén la primera ejecutándose)
 
-### Paso 3: Ejecuta las pruebas E2E
+#### Paso 3: Ejecuta las pruebas E2E
 
 **Con interfaz gráfica** (útil para desarrollo y depuración):
-```
-npm run cypress:open
+```bash
+npm run test:e2e:open
 ```
 Esto abrirá la interfaz de Cypress donde podrás seleccionar y ejecutar pruebas específicas.
 
 **En modo headless** (más rápido, sin interfaz gráfica):
-```
-npm run cypress:run
-```
-Ejecutará todas las pruebas E2E en segundo plano y mostrará los resultados en la terminal.
-
-## 3. Ejecutar todas las pruebas
-
-Para una verificación completa, ejecuta tanto las pruebas unitarias como las E2E:
-
-### Paso 1: Ejecuta las pruebas unitarias con cobertura
-```
-npm run test:coverage
+```bash
+npm run test:e2e
 ```
 
-### Paso 2: Inicia la aplicación en otra terminal
+## 3. Pruebas de Rendimiento (Lighthouse)
+
+### Opción 1: Ejecución completa (servidor y pruebas automatizadas)
+```bash
+npm run test:ci:performance
 ```
+Este comando inicia automáticamente el servidor, configura Chrome en modo debugging, ejecuta las pruebas de rendimiento y cierra todo al terminar.
+
+### Opción 2: Ejecución manual separada
+
+#### Paso 1: Inicia la aplicación
+```bash
 npm start
 ```
 
-### Paso 3: Ejecuta las pruebas E2E en una tercera terminal
-```
-npm run cypress:run
+#### Paso 2: Abre una nueva terminal y ejecuta:
+
+**Con interfaz gráfica**:
+```bash
+npm run test:performance:open
 ```
 
-## Nota sobre GitHub Actions
+**En modo headless**:
+```bash
+npm run test:performance
+```
 
-En el entorno de integración continua (GitHub Actions), todas estas pruebas se ejecutan automáticamente cuando se realiza un push o se crea un pull request, siguiendo la configuración en los archivos `.github/workflows/`.
+## 4. Ejecutar todas las pruebas
+
+### Opción automatizada completa
+```bash
+npm run test:ci:all
+```
+
+### Opción manual (paso a paso)
+1. Ejecuta las pruebas unitarias: `npm run test:coverage`
+2. Inicia la aplicación: `npm start`
+3. En otra terminal, ejecuta E2E: `npm run test:e2e`
+4. Después, ejecuta rendimiento: `npm run test:performance`
+
+## GitHub Actions (CI/CD)
+
+En el entorno de integración continua, estas pruebas se ejecutan automáticamente en cada push o pull request, mediante tres workflows separados:
 
 - `unit-tests.yml`: Ejecuta pruebas unitarias con cobertura
-- `e2e-tests.yml`: Inicia la aplicación y ejecuta las pruebas de Cypress
+- `e2e-tests.yml`: Ejecuta exclusivamente las pruebas E2E
+- `performance-tests.yml`: Ejecuta exclusivamente las pruebas de rendimiento
+
+La separación de los workflows garantiza que cada tipo de prueba se ejecute en un entorno optimizado para sus necesidades, evitando conflictos entre ellas (especialmente con las pruebas de rendimiento que requieren una configuración especial de Chrome).

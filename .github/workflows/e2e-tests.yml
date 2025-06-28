@@ -1,0 +1,45 @@
+name: Pruebas E2E con Cypress
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Este workflow ejecuta SOLO las pruebas E2E con Cypress
+# - Pruebas E2E: weightTracker.cy.js
+
+jobs:
+  e2e-tests:
+    name: Ejecutar pruebas E2E
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        
+      # Ejecutar pruebas E2E (con start-server-and-test)
+      - name: Run E2E tests
+        run: npm run test:ci:e2e
+        env:
+          CI: true
+
+      # Almacenar resultados como artefactos
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ github.run_number }}
+          path: |
+            cypress/videos/
+            cypress/screenshots/
+          retention-days: 5
