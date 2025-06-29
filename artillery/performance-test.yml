@@ -1,0 +1,75 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - name: "Calentamiento"
+      duration: 10
+      arrivalRate: 1
+      rampTo: 3
+    - name: "Carga constante"
+      duration: 20
+      arrivalRate: 3
+    - name: "Carga pico"
+      duration: 10
+      arrivalRate: 3
+      rampTo: 5
+  environments:
+    production:
+      target: "http://localhost:3000"
+    local:
+      target: "http://localhost:3000"
+  defaults:
+    headers:
+      user-agent: "Artillery/Performance-Testing"
+  plugins:
+    expect: {}
+    metrics-by-endpoint: {}
+  http:
+    timeout: 10
+  ensure:
+    p99: 500
+    maxErrorRate: 1
+  reporting:
+    formats:
+      - json
+      - text
+
+scenarios:
+  - name: "Navegación básica en la aplicación"
+    flow:
+      - get:
+          url: "/"
+          name: "Cargar página principal"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/static/css/main.618aa270.css"
+          name: "Cargar CSS principal"
+
+  - name: "Flujo de usuario típico"
+    weight: 2
+    flow:
+      - get:
+          url: "/"
+          name: "Cargar página inicial"
+      - think: 1
+      - function: "simulateAddWeight"
+      - think: 1
+      - function: "simulateDeleteWeight"
+
+functions:
+  # Esta función será implementada en un archivo de JavaScript separado
+  simulateAddWeight: |
+    function simulateAddWeight(context, events, done) {
+      // Simular añadir un peso - esto es una función simulada ya que no podemos interactuar directamente con el DOM
+      // En un entorno real, podríamos usar API endpoints si están disponibles
+      events.emit('counter', 'add_weight', 1);
+      return done();
+    }
+  
+  simulateDeleteWeight: |
+    function simulateDeleteWeight(context, events, done) {
+      // Simular eliminar un peso - esto es una función simulada
+      events.emit('counter', 'delete_weight', 1);
+      return done();
+    }

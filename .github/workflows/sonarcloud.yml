@@ -38,9 +38,9 @@ jobs:
         run: |
           echo "## 📊 SonarCloud Analysis Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status:** ${{ steps.sonarcloud.outcome == 'success' && '✅ Analysis completed' || '❌ Analysis failed' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Coverage Report:** Generated from unit tests (Jest)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Code Files Analyzed:** All source code in src/ directory" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ steps.sonarcloud.outcome == 'success' && '✅ Análisis Completo' || '❌ Análisis Fallido' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage Report:** Generado con prueba Unitaria (Jest)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Code Files Analyzed:** Toda la fuente del código en src/ directory" >> $GITHUB_STEP_SUMMARY
           echo "- **Test Files Included:** src/__tests__/ and cypress/ directories" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "For detailed analysis, visit the [SonarCloud Dashboard](https://sonarcloud.io/dashboard?id=FranciscoLeivaN_weight-tracker-app)" >> $GITHUB_STEP_SUMMARY
+          echo "Para más detalles del análisis, ingresar a [SonarCloud Dashboard](https://sonarcloud.io/dashboard?id=FranciscoLeivaN_weight-tracker-app)" >> $GITHUB_STEP_SUMMARY

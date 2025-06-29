@@ -27,8 +27,14 @@
     "test:ci:e2e": "cypress run --spec \"cypress/e2e/weightTracker.cy.js\" --browser electron --config video=true,videoCompression=false,screenshotOnRunFailure=true,defaultCommandTimeout=60000,pageLoadTimeout=120000,numTestsKeptInMemory=0",
     "test:ci:all": "npm run test:coverage && npm run test:ci:e2e",
     "test:local:ci": "npm run build && npm run serve",
-    "test:performance": "cypress run --spec \"cypress/e2e/performanceTestsFixed.cy.js\" --browser electron",
-    "test:performance:open": "cypress open --e2e"
+    "artillery:run": "artillery run artillery/performance-test.yml -o artillery-report.json && node artillery/show-results.js artillery-report.json",
+    "artillery:report": "artillery run -o artillery-report.json artillery/performance-test.yml && node artillery/show-results.js artillery-report.json",
+    "artillery:quick": "artillery quick --count 10 -n 5 http://localhost:3000/ -o quick-report.json && node artillery/show-results.js quick-report.json",
+    "artillery:ultraquick": "artillery run artillery/quick-test.yml -o quick-report.json && node artillery/show-results.js quick-report.json",
+    "artillery:analyze": "node artillery/show-results.js",
+    "artillery:show-results": "node artillery/show-results.js",
+    "test:performance": "npm run build && start-server-and-test serve http://localhost:3000 artillery:report",
+    "test:performance:quick": "npm run build && start-server-and-test serve http://localhost:3000 artillery:ultraquick"
   },
   "eslintConfig": {
     "extends": [
@@ -66,6 +72,8 @@
     }
   },
   "devDependencies": {
+    "artillery": "^2.0.23",
+    "artillery-plugin-metrics-by-endpoint": "^1.17.0",
     "cypress": "^14.5.0",
     "serve": "^14.2.4",
     "start-server-and-test": "^2.0.12"

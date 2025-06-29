@@ -1,66 +1,77 @@
-name: Pruebas de Rendimiento con Cypress
+name: Pruebas de Rendimiento
 
 on:
   push:
-    branches: [ main, master, develop ]
-  # También podemos ejecutarlas manualmente desde la interfaz de GitHub Actions
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      comments:
-        description: 'Comentarios sobre la ejecución manual'
-        required: false
-        default: 'Ejecución manual de pruebas de rendimiento'
 
 jobs:
-  performance-tests:
-    name: Ejecutar pruebas de rendimiento
+  artillery-test:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v3
+      
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '18.x'
           cache: 'npm'
-
-      - name: Install dependencies
+          
+      - name: Instalar dependencias
         run: npm ci
-
-      # Ejecutar las pruebas de rendimiento con mayor timeout
-      - name: Cypress Performance Tests
-        id: cypress-performance
-        uses: cypress-io/github-action@v5
-        with:
-          start: npm run serve # Comando para iniciar el servidor de la aplicación
-          wait-on: 'http://localhost:3000' # Espera a que el servidor esté listo
-          wait-on-timeout: 120 # Mayor tiempo de espera para pruebas de rendimiento
-          build: npm run build # Construye la aplicación antes de ejecutar las pruebas
-          browser: electron # Usa Electron como navegador para las pruebas
-          spec: "cypress/e2e/performanceTestsFixed.cy.js" # Especificar las pruebas de rendimiento
-          config: "defaultCommandTimeout=30000,pageLoadTimeout=60000,numTestsKeptInMemory=0,videoCompression=false"
-      
-      # Añadir un paso para mostrar un resumen de las pruebas de rendimiento
-      - name: Performance Test Summary
-        if: always()
+        
+      - name: Construir la aplicación
+        run: npm run build
+        
+      - name: Ejecutar pruebas de rendimiento
         run: |
-          echo "## 📊 Resumen de Pruebas de Rendimiento" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Estado:** ${{ steps.cypress-performance.outcome == 'success' && '✅ Todas las pruebas pasaron' || '❌ Algunas pruebas fallaron' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Pruebas ejecutadas:** cypress/e2e/performanceTestsFixed.cy.js" >> $GITHUB_STEP_SUMMARY
-          echo "- **Fecha de ejecución:** $(date)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Los resultados detallados están disponibles en los artefactos." >> $GITHUB_STEP_SUMMARY
-      
-      - name: Upload performance test results
-        uses: actions/upload-artifact@v4
-        if: always()
+          npm install -g artillery
+          npm run serve &
+          sleep 5
+          artillery run artillery/performance-test.yml -o artillery-report.json
+          node artillery/show-results.js artillery-report.json
+        
+      - name: Guardar informe de rendimiento
+        uses: actions/upload-artifact@v3
         with:
-          name: performance-tests-results
+          name: artillery-performance-report
           path: |
-            cypress/videos/
-            cypress/screenshots/
-            cypress/reports/
-          if-no-files-found: ignore
+            artillery-report.json
+            
+      - name: Verificar umbrales de rendimiento
+        run: |
+          # Extraer métricas clave del informe
+          MEAN_RESPONSE_TIME=$(jq '.aggregate.latency.mean' artillery-report.json)
+          P95_RESPONSE_TIME=$(jq '.aggregate.latency.p95' artillery-report.json)
+          ERROR_RATE=$(jq '.aggregate.errors.rate' artillery-report.json)
+          
+          echo "Tiempo de respuesta medio: ${MEAN_RESPONSE_TIME}ms"
+          echo "Tiempo de respuesta P95: ${P95_RESPONSE_TIME}ms"
+          echo "Tasa de error: ${ERROR_RATE}%"
+          
+          # Comprobar umbrales
+          if (( $(echo "$MEAN_RESPONSE_TIME > 200" | bc -l) )); then
+            echo "⚠️ Advertencia: El tiempo de respuesta medio supera los 200ms"
+          fi
+          
+          if (( $(echo "$P95_RESPONSE_TIME > 500" | bc -l) )); then
+            echo "⚠️ Advertencia: El tiempo de respuesta P95 supera los 500ms"
+          fi
+          
+          if (( $(echo "$ERROR_RATE > 1" | bc -l) )); then
+            echo "❌ Error: La tasa de error supera el 1%"
+            exit 1
+          fi
+      
+      - name: Resumen de rendimiento
+        run: |
+          echo "## Resumen de la prueba de rendimiento" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fecha de ejecución:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tiempo de ejecución:** $(cat artillery-report.json | jq -r '.duration // "N/A"')s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tiempo de respuesta medio:** ${MEAN_RESPONSE_TIME}ms" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tiempo de respuesta P95:** ${P95_RESPONSE_TIME}ms" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tasa de error:** ${ERROR_RATE}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **[Ver informe JSON](../artifacts/artillery-performance-report/artillery-report.json)**" >> $GITHUB_STEP_SUMMARY

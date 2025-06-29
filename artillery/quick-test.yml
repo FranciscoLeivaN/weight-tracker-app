@@ -1,0 +1,24 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - name: "Prueba rápida"
+      duration: 5
+      arrivalRate: 1
+      rampTo: 2
+  http:
+    timeout: 10
+  plugins:
+    metrics-by-endpoint: {}
+  reporting:
+    formats:
+      - json
+      - text
+
+scenarios:
+  - name: "Carga básica"
+    flow:
+      - get:
+          url: "/"
+          name: "Cargar página principal"
+          expect:
+            - statusCode: 200
