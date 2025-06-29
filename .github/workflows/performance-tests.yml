@@ -43,13 +43,42 @@ jobs:
             
       - name: Verificar umbrales de rendimiento
         run: |
-          # Extraer métricas clave del informe - en la nueva estructura están en summaries
-          MEAN_RESPONSE_TIME=$(jq '.aggregate.summaries["http.response_time"].mean' artillery-report.json)
-          P95_RESPONSE_TIME=$(jq '.aggregate.summaries["http.response_time"].p95' artillery-report.json)
+          echo "Analizando informe de rendimiento..."
+          
+          # Verificar que el archivo existe y tiene contenido
+          if [ ! -f "artillery-report.json" ] || [ ! -s "artillery-report.json" ]; then
+            echo "Error: El archivo artillery-report.json no existe o está vacío"
+            exit 1
+          fi
+          
+          # Mostrar la estructura básica del informe para debugging
+          echo "Estructura del informe:"
+          jq -r 'keys' artillery-report.json
+          echo "Estructura de aggregate:"
+          jq -r '.aggregate | keys' artillery-report.json
+          
+          # Intentar extraer métricas de summaries (nuevo formato)
+          MEAN_RESPONSE_TIME=$(jq -r '.aggregate.summaries["http.response_time"].mean // "null"' artillery-report.json)
+          P95_RESPONSE_TIME=$(jq -r '.aggregate.summaries["http.response_time"].p95 // "null"' artillery-report.json)
+          
+          # Si no están en summaries, intentar en histograms
+          if [ "$MEAN_RESPONSE_TIME" = "null" ]; then
+            MEAN_RESPONSE_TIME=$(jq -r '.aggregate.histograms["http.response_time"].mean // "null"' artillery-report.json)
+          fi
+          
+          if [ "$P95_RESPONSE_TIME" = "null" ]; then
+            P95_RESPONSE_TIME=$(jq -r '.aggregate.histograms["http.response_time"].p95 // "null"' artillery-report.json)
+          fi
           
           # Calcular la tasa de error
-          TOTAL_REQUESTS=$(jq '.aggregate.counters["http.requests"]' artillery-report.json)
-          TOTAL_ERRORS=$(jq '.aggregate.counters["http.errors"] // 0' artillery-report.json)
+          TOTAL_REQUESTS=$(jq -r '.aggregate.counters["http.requests"] // "0"' artillery-report.json)
+          TOTAL_ERRORS=$(jq -r '.aggregate.counters["http.errors"] // "0"' artillery-report.json)
+          
+          echo "Valores extraídos:"
+          echo "MEAN_RESPONSE_TIME: $MEAN_RESPONSE_TIME"
+          echo "P95_RESPONSE_TIME: $P95_RESPONSE_TIME"
+          echo "TOTAL_REQUESTS: $TOTAL_REQUESTS"
+          echo "TOTAL_ERRORS: $TOTAL_ERRORS"
           
           # Verificar si hay errores y calcular la tasa
           if [ -z "$TOTAL_ERRORS" ] || [ "$TOTAL_ERRORS" = "null" ]; then
@@ -64,35 +93,90 @@ jobs:
           echo "Tiempo de respuesta P95: ${P95_RESPONSE_TIME}ms"
           echo "Tasa de error: ${ERROR_RATE}%"
           
-          # Comprobar umbrales
-          if (( $(echo "$MEAN_RESPONSE_TIME > 200" | bc -l) )); then
-            echo "⚠️ Advertencia: El tiempo de respuesta medio supera los 200ms"
+          # Comprobar umbrales con manejo seguro de valores
+          if [ -n "$MEAN_RESPONSE_TIME" ] && [ "$MEAN_RESPONSE_TIME" != "null" ] && [ "$MEAN_RESPONSE_TIME" != "N/A" ]; then
+            if (( $(echo "$MEAN_RESPONSE_TIME > 200" | bc -l 2>/dev/null || echo 0) )); then
+              echo "⚠️ Advertencia: El tiempo de respuesta medio supera los 200ms"
+            fi
+          else
+            echo "⚠️ No se pudo verificar el umbral de tiempo de respuesta medio"
           fi
           
-          if (( $(echo "$P95_RESPONSE_TIME > 500" | bc -l) )); then
-            echo "⚠️ Advertencia: El tiempo de respuesta P95 supera los 500ms"
+          if [ -n "$P95_RESPONSE_TIME" ] && [ "$P95_RESPONSE_TIME" != "null" ] && [ "$P95_RESPONSE_TIME" != "N/A" ]; then
+            if (( $(echo "$P95_RESPONSE_TIME > 500" | bc -l 2>/dev/null || echo 0) )); then
+              echo "⚠️ Advertencia: El tiempo de respuesta P95 supera los 500ms"
+            fi
+          else
+            echo "⚠️ No se pudo verificar el umbral de tiempo de respuesta P95"
           fi
           
-          if (( $(echo "$ERROR_RATE > 1" | bc -l) )); then
-            echo "❌ Error: La tasa de error supera el 1%"
-            exit 1
+          if [ -n "$ERROR_RATE" ] && [ "$ERROR_RATE" != "null" ]; then
+            if (( $(echo "$ERROR_RATE > 1" | bc -l 2>/dev/null || echo 0) )); then
+              echo "❌ Error: La tasa de error supera el 1%"
+              exit 1
+            fi
+          else
+            echo "⚠️ No se pudo verificar el umbral de tasa de error"
           fi
       
       - name: Resumen de rendimiento
         run: |
-          # Calcular la duración de la prueba
-          DURATION=$(jq -r '(.lastCounterAt - .firstCounterAt) / 1000' artillery-report.json)
-          if [ "$DURATION" = "null" ] || [ -z "$DURATION" ]; then
-            DURATION=$(jq -r '.aggregate.lastCounterAt - .aggregate.firstCounterAt' artillery-report.json)
-            DURATION=$(echo "scale=2; $DURATION / 1000" | bc)
+          # Intentar obtener la duración de diferentes maneras
+          # Método 1: Usar el campo duration directamente si existe
+          DURATION=$(jq -r '.duration // "N/A"' artillery-report.json)
+          
+          # Método 2: Si no hay duración, intentar calcularlo de forma segura
+          if [ "$DURATION" = "N/A" ] || [ "$DURATION" = "null" ]; then
+            # Obtener los timestamps por separado y verificar que existan
+            FIRST_COUNTER=$(jq -r '.firstCounterAt // 0' artillery-report.json)
+            LAST_COUNTER=$(jq -r '.lastCounterAt // 0' artillery-report.json)
+            
+            # Si no existen en el nivel raíz, intentar con aggregate
+            if [ "$FIRST_COUNTER" = "0" ] || [ "$LAST_COUNTER" = "0" ]; then
+              FIRST_COUNTER=$(jq -r '.aggregate.firstCounterAt // 0' artillery-report.json)
+              LAST_COUNTER=$(jq -r '.aggregate.lastCounterAt // 0' artillery-report.json)
+            fi
+            
+            # Solo calcular si ambos valores son mayores que 0
+            if [ "$FIRST_COUNTER" != "0" ] && [ "$LAST_COUNTER" != "0" ]; then
+              DURATION=$(echo "scale=2; ($LAST_COUNTER - $FIRST_COUNTER) / 1000" | bc)
+            else
+              DURATION="N/A"
+            fi
+          fi
+          
+          # Método 3: Última opción, usar firstMetricAt y lastMetricAt
+          if [ "$DURATION" = "N/A" ] || [ "$DURATION" = "null" ]; then
+            FIRST_METRIC=$(jq -r '.aggregate.firstMetricAt // 0' artillery-report.json)
+            LAST_METRIC=$(jq -r '.aggregate.lastMetricAt // 0' artillery-report.json)
+            
+            if [ "$FIRST_METRIC" != "0" ] && [ "$LAST_METRIC" != "0" ]; then
+              DURATION=$(echo "scale=2; ($LAST_METRIC - $FIRST_METRIC) / 1000" | bc)
+            else
+              DURATION="N/A"
+            fi
           fi
           
           # Generar el resumen
           echo "## Resumen de la prueba de rendimiento" >> $GITHUB_STEP_SUMMARY
           echo "- **Fecha de ejecución:** $(date)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tiempo de ejecución:** ${DURATION:-N/A}s" >> $GITHUB_STEP_SUMMARY
-          echo "- **Solicitudes totales:** $(jq '.aggregate.counters["http.requests"]' artillery-report.json || echo "N/A")" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tiempo de ejecución:** ${DURATION}s" >> $GITHUB_STEP_SUMMARY
+          # Asegurar que tenemos valores para todas las métricas
+          TOTAL_REQUESTS=$(jq -r '.aggregate.counters["http.requests"] // "N/A"' artillery-report.json)
+          
+          # Si MEAN_RESPONSE_TIME o P95_RESPONSE_TIME están vacíos o son null, intentar obtenerlos de otra forma
+          if [ -z "$MEAN_RESPONSE_TIME" ] || [ "$MEAN_RESPONSE_TIME" = "null" ]; then
+            MEAN_RESPONSE_TIME=$(jq -r '.aggregate.histograms["http.response_time"].mean // "N/A"' artillery-report.json)
+          fi
+          
+          if [ -z "$P95_RESPONSE_TIME" ] || [ "$P95_RESPONSE_TIME" = "null" ]; then
+            P95_RESPONSE_TIME=$(jq -r '.aggregate.histograms["http.response_time"].p95 // "N/A"' artillery-report.json)
+          fi
+          
+          # Generar el resumen con valores seguros
+          echo "- **Solicitudes totales:** ${TOTAL_REQUESTS}" >> $GITHUB_STEP_SUMMARY
           echo "- **Tiempo de respuesta medio:** ${MEAN_RESPONSE_TIME:-N/A} ms" >> $GITHUB_STEP_SUMMARY
           echo "- **Tiempo de respuesta P95:** ${P95_RESPONSE_TIME:-N/A} ms" >> $GITHUB_STEP_SUMMARY
           echo "- **Tasa de error:** ${ERROR_RATE:-0}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Solicitudes por segundo:** $(echo "scale=2; ${TOTAL_REQUESTS} / ${DURATION}" | bc 2>/dev/null || echo "N/A")" >> $GITHUB_STEP_SUMMARY
           echo "- **[Ver informe JSON](../artifacts/artillery-performance-report/artillery-report.json)**" >> $GITHUB_STEP_SUMMARY
