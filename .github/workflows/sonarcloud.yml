@@ -3,8 +3,6 @@ name: SonarCloud Analysis
 on:
   push:
     branches: [ main, master, develop ]
-  pull_request:
-    types: [opened, synchronize, reopened]
 
 jobs:
   sonarcloud:
@@ -15,26 +13,34 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for better analysis
-
-      # Nota: Ya no ejecutamos las pruebas unitarias aquí
-      # Dependeremos de que el workflow principal de Cypress 
-      # genere los informes de cobertura
-
-      # Descargamos el informe de cobertura generado por el workflow de pruebas unitarias
-      - name: Download coverage from unit tests workflow
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: coverage-report
-          path: ./coverage/
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests and generate coverage
+        run: npm run test:coverage
+        
       - name: SonarCloud Scan
+        id: sonarcloud
         uses: SonarSource/sonarqube-scan-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          
+      - name: Display SonarCloud Analysis Summary
+        if: always()
+        run: |
+          echo "## 📊 SonarCloud Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ steps.sonarcloud.outcome == 'success' && '✅ Analysis completed' || '❌ Analysis failed' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage Report:** Generated from unit tests (Jest)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Code Files Analyzed:** All source code in src/ directory" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Files Included:** src/__tests__/ and cypress/ directories" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "For detailed analysis, visit the [SonarCloud Dashboard](https://sonarcloud.io/dashboard?id=FranciscoLeivaN_weight-tracker-app)" >> $GITHUB_STEP_SUMMARY
