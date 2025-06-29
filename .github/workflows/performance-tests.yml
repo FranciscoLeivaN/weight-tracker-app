@@ -180,11 +180,5 @@ jobs:
           echo "- **Tasa de error:** ${ERROR_RATE:-0}%" >> $GITHUB_STEP_SUMMARY
           echo "- **Solicitudes por segundo:** $(echo "scale=2; ${TOTAL_REQUESTS} / ${DURATION}" | bc 2>/dev/null || echo "N/A")" >> $GITHUB_STEP_SUMMARY
           # Crear un enlace más descriptivo para los artefactos
-          echo "- **Ver resultados completos:** Use la sección \"Artifacts\" en la parte superior para descargar \`artillery-performance-report\`" >> $GITHUB_STEP_SUMMARY
-          
-          # Incluir un fragmento del JSON para referencia rápida
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Vista previa del informe JSON" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          jq -r '.aggregate.counters + {metrics: {mean_latency: .aggregate.summaries["http.response_time"].mean, p95: .aggregate.summaries["http.response_time"].p95}}' artillery-report.json 2>/dev/null || echo "{\"nota\": \"No se pudo extraer el fragmento JSON\"}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "- **Ver resultados completos:** Use la sección \"Artifacts\" en la parte inferior para descargar \`artillery-performance-report\`" >> $GITHUB_STEP_SUMMARY
+        
