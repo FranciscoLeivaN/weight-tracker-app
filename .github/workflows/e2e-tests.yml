@@ -4,11 +4,6 @@ on:
   push:
     branches: [ main, master, develop ]
 
-# Configuración global para evitar anotaciones de cache y otros errores no críticos
-defaults:
-  run:
-    shell: bash
-
 jobs:
   e2e-tests:
     name: Ejecutar pruebas E2E
@@ -23,25 +18,12 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
-        continue-on-error: true
-
-      # Configurar caché específico para Cypress
-      - name: Cache Cypress binary
-        uses: actions/cache@v4
-        id: cache-cypress
-        with:
-          path: ~/.cache/Cypress
-          key: cypress-binary-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: cypress-binary-
-        continue-on-error: true
 
       - name: Install dependencies
         run: npm ci
 
       # Utilizando cypress-io/github-action para mayor robustez y simplicidad
       - name: Cypress.io
-        id: cypress
         uses: cypress-io/github-action@v5
         with:
           start: npm run serve  # Comando para iniciar el servidor de la aplicación
@@ -50,40 +32,12 @@ jobs:
           build: npm run build  # Construye la aplicación antes de ejecutar las pruebas
           browser: electron  # Usa Electron como navegador para las pruebas E2E
           spec: "cypress/e2e/weightTracker.cy.js"  # Especificar exactamente qué test ejecutar
-          config-file: cypress.config.js
-          # Configuraciones para ignorar errores de caché
-          config: '{"numTestsKeptInMemory":0,"experimentalMemoryManagement":true}'
-        env:
-          # Forzar desactivación de caché para evitar anotaciones de error
-          CYPRESS_CACHE_FOLDER: '${{ github.workspace }}/.cypress-cache'
-          
-      # Estrategia de reintentos en caso de fallos (problemas transitorios)
-      - name: Cypress segundo intento si falla
-        if: failure() && steps.cypress.outcome == 'failure'
-        uses: cypress-io/github-action@v5
-        with:
-          start: npm run serve
-          wait-on: 'http://localhost:3000'
-          wait-on-timeout: 60
-          browser: electron
-          spec: "cypress/e2e/weightTracker.cy.js"
-          install: false # Ya tenemos las dependencias instaladas
-          build: false # Ya tenemos el build listo
-          config: '{"numTestsKeptInMemory":0,"experimentalMemoryManagement":true}'
       
-      # Limpiar caché local antes de subir artefactos para evitar problemas
-      - name: Clean Cypress cache
-        if: always()
-        run: |
-          echo "Limpiando caché local de Cypress..."
-          rm -rf .cypress-cache || true
-          rm -rf ~/.cache/Cypress || true
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cypress-results-${{ github.run_number }}
+          name: cypress-results
           path: |
             cypress/videos/
             cypress/screenshots/
