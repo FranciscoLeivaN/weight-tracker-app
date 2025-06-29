@@ -35,10 +35,10 @@ module.exports = defineConfig({
     viewportHeight: 720,
     
     // Configuración de timeouts mejorada para CI
-    defaultCommandTimeout: 30000,
+    defaultCommandTimeout: 20000,
     pageLoadTimeout: 180000,
     requestTimeout: 30000,
-    responseTimeout: 30000,
+    responseTimeout: 20000,
     
     // Configuración de video y capturas
     video: true,

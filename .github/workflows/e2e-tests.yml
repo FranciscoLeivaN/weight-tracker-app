@@ -1,12 +1,14 @@
-name: Pruebas E2E con Cypress
+name: Pruebas E2E Funcionales con Cypress
 
 on:
   push:
     branches: [ main, master, develop ]
+  # También podemos ejecutarlas manualmente
+  workflow_dispatch:
 
 jobs:
   e2e-tests:
-    name: Ejecutar pruebas E2E
+    name: Ejecutar pruebas E2E funcionales
     runs-on: ubuntu-latest
     
     steps:
