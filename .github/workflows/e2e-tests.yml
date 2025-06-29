@@ -26,6 +26,7 @@ jobs:
 
       # Utilizando cypress-io/github-action para mayor robustez y simplicidad
       - name: Cypress.io
+        id: cypress-E2E
         uses: cypress-io/github-action@v5
         with:
           start: npm run serve  # Comando para iniciar el servidor de la aplicación
@@ -35,11 +36,23 @@ jobs:
           browser: electron  # Usa Electron como navegador para las pruebas E2E
           spec: "cypress/e2e/weightTracker.cy.js"  # Especificar exactamente qué test ejecutar
       
-      - name: Upload artifacts
+      # Añadir un paso para mostrar un resumen de las pruebas funcionales
+      - name: E2E Test Summary
+        if: always()
+        run: |
+          echo "## 📊 Resumen de Pruebas Funcionales" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Estado:** ${{ steps.cypress-E2E.outcome == 'success' && '✅ Todas las pruebas pasaron' || '❌ Algunas pruebas fallaron' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pruebas ejecutadas:** cypress/e2e/weightTracker.cy.js" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fecha de ejecución:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Los resultados detallados están disponibles en los artefactos." >> $GITHUB_STEP_SUMMARY
+          
+      - name: Upload E2E test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cypress-results
+          name: E2E-results
           path: |
             cypress/videos/
             cypress/screenshots/
