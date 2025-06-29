@@ -43,10 +43,22 @@ jobs:
             
       - name: Verificar umbrales de rendimiento
         run: |
-          # Extraer métricas clave del informe
-          MEAN_RESPONSE_TIME=$(jq '.aggregate.latency.mean' artillery-report.json)
-          P95_RESPONSE_TIME=$(jq '.aggregate.latency.p95' artillery-report.json)
-          ERROR_RATE=$(jq '.aggregate.errors.rate' artillery-report.json)
+          # Extraer métricas clave del informe - en la nueva estructura están en summaries
+          MEAN_RESPONSE_TIME=$(jq '.aggregate.summaries["http.response_time"].mean' artillery-report.json)
+          P95_RESPONSE_TIME=$(jq '.aggregate.summaries["http.response_time"].p95' artillery-report.json)
+          
+          # Calcular la tasa de error
+          TOTAL_REQUESTS=$(jq '.aggregate.counters["http.requests"]' artillery-report.json)
+          TOTAL_ERRORS=$(jq '.aggregate.counters["http.errors"] // 0' artillery-report.json)
+          
+          # Verificar si hay errores y calcular la tasa
+          if [ -z "$TOTAL_ERRORS" ] || [ "$TOTAL_ERRORS" = "null" ]; then
+            ERROR_RATE="0"
+          elif [ "$TOTAL_REQUESTS" -gt 0 ]; then
+            ERROR_RATE=$(echo "scale=2; $TOTAL_ERRORS * 100 / $TOTAL_REQUESTS" | bc)
+          else
+            ERROR_RATE="0"
+          fi
           
           echo "Tiempo de respuesta medio: ${MEAN_RESPONSE_TIME}ms"
           echo "Tiempo de respuesta P95: ${P95_RESPONSE_TIME}ms"
@@ -68,10 +80,19 @@ jobs:
       
       - name: Resumen de rendimiento
         run: |
+          # Calcular la duración de la prueba
+          DURATION=$(jq -r '(.lastCounterAt - .firstCounterAt) / 1000' artillery-report.json)
+          if [ "$DURATION" = "null" ] || [ -z "$DURATION" ]; then
+            DURATION=$(jq -r '.aggregate.lastCounterAt - .aggregate.firstCounterAt' artillery-report.json)
+            DURATION=$(echo "scale=2; $DURATION / 1000" | bc)
+          fi
+          
+          # Generar el resumen
           echo "## Resumen de la prueba de rendimiento" >> $GITHUB_STEP_SUMMARY
           echo "- **Fecha de ejecución:** $(date)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tiempo de ejecución:** $(cat artillery-report.json | jq -r '.duration // "N/A"')s" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tiempo de respuesta medio:** ${MEAN_RESPONSE_TIME}ms" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tiempo de respuesta P95:** ${P95_RESPONSE_TIME}ms" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tasa de error:** ${ERROR_RATE}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tiempo de ejecución:** ${DURATION:-N/A}s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Solicitudes totales:** $(jq '.aggregate.counters["http.requests"]' artillery-report.json || echo "N/A")" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tiempo de respuesta medio:** ${MEAN_RESPONSE_TIME:-N/A} ms" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tiempo de respuesta P95:** ${P95_RESPONSE_TIME:-N/A} ms" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tasa de error:** ${ERROR_RATE:-0}%" >> $GITHUB_STEP_SUMMARY
           echo "- **[Ver informe JSON](../artifacts/artillery-performance-report/artillery-report.json)**" >> $GITHUB_STEP_SUMMARY

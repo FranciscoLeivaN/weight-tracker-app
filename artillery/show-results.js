@@ -97,7 +97,18 @@ function showResults(data, filePath) {
   const totalRequests = counters['http.requests'] || 0;
   const errors = counters['http.errors'] || 0;
   const errorRate = totalRequests ? ((errors / totalRequests) * 100).toFixed(2) : '0';
-  const rps = data.aggregate?.rates?.['http.request_rate'] || 0;
+  // Calcular RPS basado en la duración total y el número de solicitudes
+  const duration = data.duration || 
+                   (data.lastCounterAt && data.firstCounterAt ? (data.lastCounterAt - data.firstCounterAt) / 1000 : null) ||
+                   (data.aggregate?.firstCounterAt && data.aggregate?.lastCounterAt ? (data.aggregate.lastCounterAt - data.aggregate.firstCounterAt) / 1000 : 1);
+  
+  // Obtener RPS desde rates o calcularlo
+  let rps = data.aggregate?.rates?.['http.request_rate'] || 0;
+  
+  // Si rates no tiene el valor o es 0, calculamos manualmente
+  if ((!rps || rps === 0) && totalRequests > 0 && duration > 0) {
+    rps = totalRequests / duration;
+  }
   
   console.log(`  ${colors.bright}Solicitudes totales:${colors.reset} ${totalRequests}`);
   console.log(`  ${colors.bright}Errores:${colors.reset} ${errors}`);
@@ -110,7 +121,7 @@ function showResults(data, filePath) {
   }
   
   console.log(`  ${colors.bright}Tasa de error:${colors.reset} ${errorColor}${errorRate}%${colors.reset}`);
-  console.log(`  ${colors.bright}Solicitudes por segundo:${colors.reset} ${typeof rps === 'object' ? rps.mean.toFixed(2) : '0'}`);
+  console.log(`  ${colors.bright}Solicitudes por segundo:${colors.reset} ${typeof rps === 'object' ? rps.mean.toFixed(2) : typeof rps === 'number' ? rps.toFixed(2) : '0'}`);
   
   // Tiempos de respuesta
   const latency = data.aggregate?.summaries?.['http.response_time'] || {};
