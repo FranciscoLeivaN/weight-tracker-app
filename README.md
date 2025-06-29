@@ -1,183 +1,145 @@
 # Weight Tracker App
 
-Una aplicación web para seguimiento de peso corporal, con pruebas completas de funcionalPara generar un informe detallado y ver su resumen en la consola:
+## 1. Descripción de la aplicación
 
-```bash
-npm run artillery:report
-```
+Weight Tracker es una aplicación web sencilla pero efectiva para el seguimiento de peso corporal. 
 
-### Análisis de resultados
+### Características principales
+- **Registro personalizado**: Registra tu peso con tu nombre de usuario
+- **Validaciones inteligentes**: Sistema de validación de datos para asegurar entradas coherentes
+- **Restricción anti-spam**: Límite de un registro cada 48 horas para fomentar un seguimiento real
+- **Persistencia local**: Almacenamiento en localStorage para mantener tus datos aun cerrando el navegador
+- **Interfaz minimalista**: Diseño simple y directo, enfocado en la funcionalidad
 
-Las pruebas generan archivos JSON con los resultados detallados y automáticamente muestran un resumen en la consola después de cada ejecución.ndimiento.
+La aplicación está desarrollada como proyecto demostrativo para implementar buenas prácticas de desarrollo, pruebas automatizadas y CI/CD.
 
-## Características
-
-- Registro de peso con nombre de usuario
-- Validación de datos de entrada
-- Restricción de 48 horas entre registros
-- Persistencia de datos en localStorage
-- Interfaz de usuario simple e intuitiva
-
-## Tecnologías
-
-- React (FrontEnd)
-- LocalStorage (Persistencia)
-- Cypress (Pruebas end-to-end y rendimiento)
-- GitHub Actions (CI/CD)
-- SonarCloud (Calidad de código)
-
-## Desarrollo Local
+## 2. Instalación y despliegue
 
 ### Requisitos previos
-
 - Node.js (versión 14 o superior)
-- npm (viene con Node.js)
+- npm (viene incluido con Node.js)
 
 ### Instalación
+1. Clona este repositorio:
+```bash
+git clone https://github.com/tu-usuario/weight-tracker-app.git
+cd weight-tracker-app
+```
 
-1. Clonar este repositorio
-2. Instalar dependencias:
-
+2. Instala las dependencias:
 ```bash
 npm install
 ```
 
-3. Iniciar la aplicación en modo desarrollo:
-
+3. Inicia la aplicación en modo desarrollo:
 ```bash
 npm start
 ```
 
-La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
+La aplicación estará disponible en [http://localhost:3000].
 
-## Pruebas
+## 3. Ejecución de pruebas
 
-### Pruebas unitarias
+La aplicación cuenta con un exhaustivo conjunto de pruebas automatizadas divididas en tres categorías principales:
 
-Para ejecutar las pruebas unitarias:
+### 3.1 Pruebas unitarias (Jest)
+
+Las pruebas unitarias verifican el correcto funcionamiento de componentes individuales y funciones de utilidad.
 
 ```bash
+# Ejecutar todas las pruebas unitarias
 npm test
-```
 
-Para ejecutar las pruebas con cobertura:
-
-```bash
+# Ejecutar pruebas con cobertura de código
 npm run test:coverage
 ```
 
-### Pruebas End-to-End
+La cobertura de código se puede visualizar en detalle abriendo el archivo `coverage/lcov-report/index.html` en cualquier navegador.
 
-Para ejecutar las pruebas e2e con Cypress:
+### 3.2 Pruebas End-to-End (Pruebas de funcionalidad con Cypress)
+
+Las pruebas E2E simulan interacciones reales de usuario para validar el funcionamiento completo de la aplicación.
 
 ```bash
+# Ejecutar pruebas E2E en modo headless
 npm run test:e2e
-```
 
-Para abrir Cypress y ejecutar las pruebas de forma interactiva:
-
-```bash
+# Abrir Cypress para ejecutar pruebas de forma interactiva
 npm run test:e2e:open
 ```
 
-### Pruebas de Rendimiento
+Estas pruebas verifican:
+- Registro de nuevos pesos
+- Validación de formularios
+- Persistencia de datos
+- Restricciones temporales entre registros
 
-La aplicación incluye un conjunto completo de pruebas de rendimiento que miden métricas clave:
+### 3.3 Pruebas de rendimiento con Artillery
 
-- **Latencia**: Tiempo de respuesta para operaciones específicas
-
-
-## Pruebas de Rendimiento con Artillery
-
-Este proyecto utiliza [Artillery](https://www.artillery.io/) para realizar pruebas de rendimiento y carga. Artillery es una herramienta moderna y potente que permite simular tráfico realista a la aplicación.
-
-### Características de las pruebas de rendimiento
-
-- **Escenarios realistas**: Simulación de flujos reales de usuarios
-- **Fases de carga**: Rampa gradual, carga sostenida y pruebas de pico
-- **Métricas detalladas**: Tiempos de respuesta, tasas de error, percentiles
-- **Reportes JSON**: Generación automática de informes detallados en formato JSON
-
-### Ejecutar pruebas de rendimiento
-
-Para ejecutar pruebas de rendimiento básicas:
+La aplicación implementa pruebas de rendimiento utilizando Artillery para asegurar un funcionamiento óptimo bajo diferentes niveles de carga.
 
 ```bash
-npm run artillery:quick
-```
-
-Para ejecutar pruebas ultra rápidas (5 segundos):
-
-```bash
+# Prueba ultrarrápida (5 segundos)
 npm run artillery:ultraquick
-```
 
-Para ejecutar pruebas de rendimiento completas:
+# Prueba rápida
+npm run artillery:quick
 
-```bash
+# Prueba completa de rendimiento
 npm run artillery:run
-```
 
-Para generar un informe detallado en JSON:
-
-```bash
+# Generar informe detallado
 npm run artillery:report
-```
 
-### Análisis de resultados
-
-Las pruebas generan archivos JSON con los resultados detallados que se pueden analizar manualmente o utilizar herramientas externas para su visualización.
-
-Los archivos de resultados contienen:
-- Tiempos de respuesta (promedio, mínimo, máximo, percentiles)
-- Número de solicitudes y respuestas
-- Tasas de error
-- Métricas por endpoint
-- Estadísticas de sesión de usuario
-
-Para ejecutar pruebas de rendimiento en un entorno de construcción:
-
-```bash
-npm run test:performance
-```
-
-### Reportes de rendimiento
-
-Las pruebas generan automáticamente informes detallados que incluyen:
-
-- Tiempo mínimo, máximo y promedio para cada operación
-- Percentiles P95 y P99 de tiempos de respuesta
-- Tasa de error por operación
-- Throughput general del sistema
-- Estadísticas de concurrencia simulada
-
-Los reportes están disponibles en formato JSON:
-
-- **quick-report.json**: Para pruebas ultrarrápidas
-- **artillery-report.json**: Para pruebas completas
-
-Los resultados se muestran automáticamente en la consola después de cada ejecución. Si deseas analizar un informe existente en cualquier momento:
-
-```bash
-npm run artillery:analyze quick-report.json
-# o
+# Analizar un informe existente
 npm run artillery:analyze artillery-report.json
 ```
 
-## CI/CD
+**Características de las pruebas de rendimiento**:
+- Simulación de diferentes niveles de carga de usuarios
+- Medición de tiempos de respuesta
+- Identificación de cuellos de botella
+- Validación de umbrales de rendimiento
 
-Este proyecto utiliza GitHub Actions para automatizar:
+Los resultados se muestran automáticamente en la consola tras cada ejecución, incluyendo:
+- Tiempos de respuesta (mínimo, medio, p95, p99, máximo)
+- Tasa de error
+- Solicitudes por segundo
+- Métricas por endpoint
 
-1. **Pruebas funcionales**: Validación de la funcionalidad básica
-2. **Pruebas de rendimiento**: Evaluación del rendimiento con Artillery
-3. **Análisis de calidad**: Integración con SonarCloud para análisis de código
+## 4. Herramientas y tecnologías utilizadas
 
-Los workflows están configurados en `.github/workflows/`.
+### Frontend
+- **React**: Librería para la construcción de interfaces de usuario
+- **CSS**: Estilos básicos para una experiencia visual limpia
 
-## Mejores Prácticas Implementadas
+### Almacenamiento
+- **LocalStorage**: Persistencia de datos en el navegador del cliente
 
-- **Selectores resilientes**: Las pruebas utilizan selectores que son tolerantes a cambios en la estructura del DOM
-- **Timeouts adecuados**: Configuración de timeouts apropiados para CI/CD
-- **Reintento automático**: Las pruebas reintentan operaciones en caso de fallos intermitentes
-- **Medición precisa**: Sistema avanzado para medir métricas de rendimiento
-- **Reportes detallados**: Generación automática de reportes de rendimiento
+### Testing
+- **Jest**: Framework para pruebas unitarias y de integración
+- **Testing Library**: Utilidades para probar componentes React
+- **Cypress**: Herramienta para pruebas end-to-end
+- **Artillery**: Herramienta para pruebas de rendimiento y carga
+
+### CI/CD e Integración
+- **GitHub Actions**: Automatización de pruebas y despliegue
+- **SonarCloud**: Análisis de calidad de código
+
+### DevOps
+- **npm scripts**: Automatización de tareas comunes
+- **serve**: Servidor estático ligero para despliegue local
+
+## 5. Mejores prácticas implementadas
+
+- **Pruebas automáticas**: Cobertura completa con pruebas unitarias, E2E y de rendimiento
+- **Integración continua**: Verificación automática de calidad en cada commit
+- **Selectores resilientes**: Las pruebas E2E utilizan selectores que resisten cambios en la estructura del DOM
+- **Timeouts adecuados**: Configuración optimizada para evitar falsos positivos
+- **Reintentos automáticos**: Las pruebas reintentan operaciones en caso de fallos intermitentes
+- **Informes detallados**: Generación automática de informes para análisis de rendimiento y cobertura
+- **Umbrales de calidad**: Definición de estándares mínimos para cobertura y rendimiento
+
+---
+
+Desarrollado como parte de un proyecto demostrativo de buenas prácticas en desarrollo web.
