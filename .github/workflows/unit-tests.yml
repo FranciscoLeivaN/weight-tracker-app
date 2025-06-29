@@ -25,8 +25,77 @@ jobs:
     - name: Ejecutar pruebas unitarias
       run: npm run test:coverage
     
+    - name: Generar resumen de cobertura para GitHub
+      run: |
+        echo "## Resumen de Cobertura de Código" >> $GITHUB_STEP_SUMMARY
+        
+        # Verificar que el archivo de cobertura JSON existe
+        if [ -f "coverage/coverage-summary.json" ]; then
+          COVERAGE_FILE="coverage/coverage-summary.json"
+        elif [ -f "coverage/coverage-final.json" ]; then
+          # Convertir el coverage-final.json a un formato más sencillo
+          echo "Usando coverage-final.json y convirtiéndolo a formato resumido..."
+          node -e 'const fs=require("fs");const data=JSON.parse(fs.readFileSync("coverage/coverage-final.json","utf8"));const result={};const total={lines:{total:0,covered:0,pct:0},statements:{total:0,covered:0,pct:0},functions:{total:0,covered:0,pct:0},branches:{total:0,covered:0,pct:0}};Object.keys(data).forEach(file=>{const f=data[file];if(!result[file])result[file]={lines:{total:f.statementMap?Object.keys(f.statementMap).length:0,covered:f.statementMap?Object.keys(f.statementMap).filter(s=>f.s[s]).length:0,pct:0},statements:{total:f.statementMap?Object.keys(f.statementMap).length:0,covered:f.statementMap?Object.keys(f.statementMap).filter(s=>f.s[s]).length:0,pct:0},functions:{total:f.fnMap?Object.keys(f.fnMap).length:0,covered:f.fnMap?Object.keys(f.fnMap).filter(fn=>f.f[fn]).length:0,pct:0},branches:{total:f.branchMap?Object.keys(f.branchMap).reduce((acc,b)=>acc+f.branchMap[b].locations.length,0):0,covered:f.branchMap?Object.keys(f.branchMap).reduce((acc,b)=>{const hits=f.b[b]||[];return acc+hits.filter(h=>h>0).length},0):0,pct:0}};const fileData=result[file];["lines","statements","functions","branches"].forEach(key=>{fileData[key].pct=fileData[key].total?Math.round(fileData[key].covered/fileData[key].total*100):0;total[key].total+=fileData[key].total;total[key].covered+=fileData[key].covered})});["lines","statements","functions","branches"].forEach(key=>{total[key].pct=total[key].total?Math.round(total[key].covered/total[key].total*100):0});fs.writeFileSync("coverage/coverage-summary.json",JSON.stringify({total,...result}));console.log("Resumen de cobertura creado en coverage/coverage-summary.json");' || echo "Error convirtiendo coverage-final.json"
+          COVERAGE_FILE="coverage/coverage-summary.json"
+        else
+          echo "Error: No se encontró archivo de cobertura" >> $GITHUB_STEP_SUMMARY
+          echo "No se encontró archivo de cobertura en coverage/"
+          ls -la coverage/
+          COVERAGE_FILE=""
+        fi
+        
+        if [ -n "$COVERAGE_FILE" ]; then
+          # Extraer estadísticas totales
+          TOTAL_LINES=$(jq -r '.total.lines.pct' $COVERAGE_FILE)
+          TOTAL_STATEMENTS=$(jq -r '.total.statements.pct' $COVERAGE_FILE)
+          TOTAL_FUNCTIONS=$(jq -r '.total.functions.pct' $COVERAGE_FILE)
+          TOTAL_BRANCHES=$(jq -r '.total.branches.pct' $COVERAGE_FILE)
+          
+          # Crear tabla de resumen
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cobertura Total" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tipo | Cobertura (%) |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|---------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Líneas** | ${TOTAL_LINES}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Declaraciones** | ${TOTAL_STATEMENTS}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Funciones** | ${TOTAL_FUNCTIONS}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ramas** | ${TOTAL_BRANCHES}% |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extraer detalles por archivo (excluyendo el total)
+          echo "### Detalle por archivo" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Archivo | Líneas | Declaraciones | Funciones | Ramas |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|--------------|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Obtener todos los archivos excepto "total"
+          FILES=$(jq -r 'keys | .[]' $COVERAGE_FILE | grep -v "total")
+          
+          for FILE in $FILES; do
+            FILE_LINES=$(jq -r ".[\"$FILE\"].lines.pct" $COVERAGE_FILE)
+            FILE_STATEMENTS=$(jq -r ".[\"$FILE\"].statements.pct" $COVERAGE_FILE)
+            FILE_FUNCTIONS=$(jq -r ".[\"$FILE\"].functions.pct" $COVERAGE_FILE)
+            FILE_BRANCHES=$(jq -r ".[\"$FILE\"].branches.pct" $COVERAGE_FILE)
+            
+            # Mostrar solo el nombre del archivo sin la ruta completa
+            FILENAME=$(echo $FILE | sed -E 's/.*\/(src\/.*)/\1/')
+            
+            echo "| \`$FILENAME\` | ${FILE_LINES}% | ${FILE_STATEMENTS}% | ${FILE_FUNCTIONS}% | ${FILE_BRANCHES}% |" >> $GITHUB_STEP_SUMMARY
+          done
+        fi
+    
     - name: Subir informe de cobertura de código
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: coverage/
+        
+    - name: Añadir nota sobre informe HTML
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Acceso al Informe Completo HTML" >> $GITHUB_STEP_SUMMARY
+        echo "Para ver el informe de cobertura interactivo completo:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Descargue el artefacto \`coverage-report\` de esta ejecución" >> $GITHUB_STEP_SUMMARY
+        echo "2. Extraiga el archivo" >> $GITHUB_STEP_SUMMARY
+        echo "3. Abra \`lcov-report/index.html\` en su navegador" >> $GITHUB_STEP_SUMMARY
