@@ -35,23 +35,18 @@ module.exports = defineConfig({
     viewportHeight: 720,
     
     // Configuración de timeouts mejorada para CI
-    defaultCommandTimeout: 60000, // Aumentado a 60 segundos
+    defaultCommandTimeout: 30000,
     pageLoadTimeout: 180000,
-    requestTimeout: 60000, // Aumentado a 60 segundos
-    responseTimeout: 60000, // Aumentado a 60 segundos
-    videoTimeout: 30000, // Tiempo extendido para grabar video completo (30 segundos)
-    experimentalInteractiveRunEvents: true, // Habilita eventos adicionales para controlar tests
+    requestTimeout: 30000,
+    responseTimeout: 30000,
     
     // Configuración de video y capturas
     video: true,
-    videoCompression: 32, // Menor compresión para mejor calidad (0-100, donde 0 es sin compresión)
-    trashAssetsBeforeRuns: false, // Mantener videos anteriores
+    videoCompression: false,
+    trashAssetsBeforeRuns: false,
     screenshotOnRunFailure: true,
     videosFolder: 'cypress/videos',
     screenshotsFolder: 'cypress/screenshots',
-    videoRecording: {
-      enabled: true
-    },
     
     // Configuración de reportes
     reporter: 'spec',
@@ -66,17 +61,6 @@ module.exports = defineConfig({
     },
     
     // Variables de entorno para E2E
-    env: {
-      videoCompression: 32, // Configuración de compresión
-      waitForAnimations: true,
-      animationDistanceThreshold: 20,
-      videoRecordingDelay: 3000, // Esperar 3 segundos antes de finalizar la grabación
-      numTestsKeptInMemory: 0, // Para evitar problemas de memoria
-      videoRecording: true
-    },
-    
-    // Control del proceso de grabación
-    experimentalSessionAndOrigin: true,
-    experimentalSourceRewriting: true
+    env: {}
   },
 });

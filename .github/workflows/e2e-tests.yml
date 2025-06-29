@@ -28,11 +28,10 @@ jobs:
         with:
           start: npm run serve  # Comando para iniciar el servidor de la aplicación
           wait-on: 'http://localhost:3000'  # Espera a que el servidor esté listo
-          wait-on-timeout: 120  # Tiempo máximo de espera aumentado a 2 minutos
+          wait-on-timeout: 60  # Tiempo máximo de espera en segundos
           build: npm run build  # Construye la aplicación antes de ejecutar las pruebas
           browser: electron  # Usa Electron como navegador para las pruebas E2E
           spec: "cypress/e2e/weightTracker.cy.js"  # Especificar exactamente qué test ejecutar
-          config: "video=true,videoCompression=32,videoTimeout=80000,experimentalInteractiveRunEvents=true"  # Configuración de video extendida
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
