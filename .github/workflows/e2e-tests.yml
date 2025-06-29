@@ -13,98 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cypress.io
+        uses: cypress-io/github-action@v5
         with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-        
-      # Instalar servidor estático global
-      - name: Install serve
-        run: npm install -g serve
-          
-      # Compilar la aplicación y servirla en segundo plano
-      - name: Build and serve app
-        run: |
-          echo "Compilando la aplicación..."
-          npm run build
-          
-          # Copiar el archivo serve.json a la carpeta build
-          echo "Copiando archivo de configuración serve.json a la carpeta build..."
-          cp serve.json build/
-          
-          # Iniciar servidor en segundo plano
-          echo "Iniciando servidor estático..."
-          serve -s build -l 3000 --config build/serve.json &
-          echo $! > server.pid
-          
-          # Esperar a que el servidor esté disponible
-          echo "Verificando disponibilidad del servidor..."
-          attempts=0
-          max_attempts=30
-          until $(curl --output /dev/null --silent --head --fail http://localhost:3000) || [ $attempts -eq $max_attempts ]
-          do
-            echo "Esperando a que el servidor esté disponible... (intento $attempts/$max_attempts)"
-            attempts=$((attempts+1))
-            sleep 2
-          done
-          
-          if [ $attempts -eq $max_attempts ]; then
-            echo "Error: Servidor no disponible después de $max_attempts intentos"
-            exit 1
-          fi
-          
-          echo "✅ Servidor disponible en http://localhost:3000"
-
-      # Ejecutar pruebas E2E
-      - name: Run E2E tests
-        run: npm run test:e2e
-        env:
-          CYPRESS_baseUrl: http://localhost:3000
-
-      - name: Subir informe de cobertura de código
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-results-${{ github.run_number }}
-          path: |
-            cypress/videos/
-            cypress/screenshots/
-            
-      # Limpiar recursos al finalizar
-      - name: Clean up
-        if: always()  # Ejecutar siempre este paso, incluso si fallan los anteriores
-        run: |
-          echo "Limpiando procesos y recursos..."
-          
-          # Matar servidor si existe su PID
-          if [ -f server.pid ]; then
-            echo "Terminando proceso con PID $(cat server.pid)"
-            kill $(cat server.pid) || true
-            rm server.pid
-          fi
-          
-          # Verificar si queda algún proceso en el puerto 3000
-          if lsof -i:3000 >/dev/null 2>&1; then
-            echo "Cerrando procesos en el puerto 3000..."
-            # Matar cualquier proceso relacionado
-            pkill -f "serve -s build" || true
-            pkill -f "node.*serve" || true
-            
-            # Liberar puerto forzosamente en caso extremo
-            sudo fuser -k 3000/tcp || true
-          else
-            echo "No hay procesos corriendo en el puerto 3000"
-          fi
-          
-          # Verificar que el puerto está libre
-          if ! lsof -i:3000 >/dev/null 2>&1; then
-            echo "✅ Puerto 3000 liberado correctamente"
-          else
-            echo "⚠️ No se pudo liberar el puerto 3000, pero continuamos"
-          fi
-          
-          echo "Limpieza completada"
-        
+          start: npm run serve  # Comando para iniciar el servidor de la aplicación
+          wait-on: 'http://localhost:3000'  # Espera a que el servidor esté listo
+          wait-on-timeout: 60  # Tiempo máximo de espera en segundos
+          build: npm run build  # Construye la aplicación antes de ejecutar las pruebas
+          browser: electron  # Usa Electron como navegador para las pruebas E2E
+      
