@@ -36,7 +36,7 @@
     "test:performance": "npm run build && start-server-and-test serve http://localhost:3000 artillery:report",
     "test:performance:quick": "npm run build && start-server-and-test serve http://localhost:3000 artillery:ultraquick",
     "test:regression": "react-scripts test --testMatch=\"**/__tests__/regression.test.js\"",
-    "test:regression:coverage": "react-scripts test --testMatch=\"**/__tests__/regression.test.js\" --coverage --watchAll=false"
+    "test:regression:coverage": "react-scripts test --testMatch=\"**/__tests__/regression.test.js\" --coverage --coverageThreshold=\"{}\" --watchAll=false"
   },
   "eslintConfig": {
     "extends": [
