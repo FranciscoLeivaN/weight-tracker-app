@@ -26,6 +26,9 @@ jobs:
       - name: Run tests and generate coverage
         run: npm run test:coverage
         
+      - name: Run regression tests
+        run: npm run test:regression:coverage
+        
       - name: SonarCloud Scan
         id: sonarcloud
         uses: SonarSource/sonarqube-scan-action@v4
@@ -39,8 +42,9 @@ jobs:
           echo "## 📊 SonarCloud Analysis Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Status:** ${{ steps.sonarcloud.outcome == 'success' && '✅ Análisis Completo' || '❌ Análisis Fallido' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Coverage Report:** Generado con prueba Unitaria (Jest)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage Report:** Generado con pruebas Unitarias y de Regresión (Jest)" >> $GITHUB_STEP_SUMMARY
           echo "- **Code Files Analyzed:** Toda la fuente del código en src/ directory" >> $GITHUB_STEP_SUMMARY
           echo "- **Test Files Included:** src/__tests__/ and cypress/ directories" >> $GITHUB_STEP_SUMMARY
+          echo "- **Regression Tests:** src/__tests__/regression.test.js" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Para más detalles del análisis, ingresar a [SonarCloud Dashboard](https://sonarcloud.io/dashboard?id=FranciscoLeivaN_weight-tracker-app)" >> $GITHUB_STEP_SUMMARY

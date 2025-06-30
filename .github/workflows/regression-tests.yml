@@ -1,0 +1,64 @@
+name: Regression Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  # Permitir ejecución manual desde la interfaz de GitHub
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Entorno para ejecutar pruebas'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  regression-tests:
+    name: Pruebas de Regresión
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Deshabilitamos clones superficiales para mejor análisis
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run regression tests with coverage
+        run: npm run test:regression:coverage
+        
+      - name: Generate regression testing summary
+        if: always()
+        run: |
+          echo "## 📊 Resumen de Pruebas de Regresión" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "- **Estado:** ✅ Todas las pruebas de regresión pasaron correctamente" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Estado:** ❌ Algunas pruebas de regresión fallaron" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Archivos probados:**" >> $GITHUB_STEP_SUMMARY
+          echo "  - App.js" >> $GITHUB_STEP_SUMMARY
+          echo "  - utils/weightUtils.js" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Estas pruebas verifican que los cambios recientes no impactan negativamente la funcionalidad existente." >> $GITHUB_STEP_SUMMARY
+          
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regression-coverage-report
+          path: coverage/
+          retention-days: 7
