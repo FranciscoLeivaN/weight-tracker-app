@@ -92,7 +92,7 @@ describe('Componente App', () => {
     expect(screen.getByText(/Peso: 75.5 kg/)).toBeInTheDocument();
   });
   
-  test('loads existing weights from localStorage', () => {
+  test('Carga de datos desde localStorage', () => {
     // Descripción: Verifica que la aplicación cargue correctamente los registros de peso desde el almacenamiento local
     // Configurar datos simulados
     const mockWeights = [
@@ -110,7 +110,7 @@ describe('Componente App', () => {
     expect(screen.getByText(/Peso: 69.5 kg/)).toBeInTheDocument();
   });
   
-  test('clears all weight records', () => {
+  test('Borrado de registros', () => {
     // Descripción: Verifica que la funcionalidad de borrar todos los registros funcione correctamente
     // Configurar datos simulados
     const mockWeights = [
@@ -134,7 +134,7 @@ describe('Componente App', () => {
     expect(localStorage.removeItem).toHaveBeenCalledWith('userWeights');
   });
   
-  test('enforces 48-hour rule between weight entries', () => {
+  test('Cumplimiento de la regla de 48 horas', () => {
     // Descripción: Verifica que la aplicación imponga la regla de 48 horas entre registros de peso
     // Simular una fecha y hora fijas para la prueba
     const fixedDate = new Date('2025-06-27T10:00:00Z');

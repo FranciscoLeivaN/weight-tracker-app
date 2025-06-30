@@ -47,8 +47,11 @@ La aplicación cuenta con un exhaustivo conjunto de pruebas automatizadas dividi
 Las pruebas unitarias verifican el correcto funcionamiento de componentes individuales y funciones de utilidad.
 
 ```bash
-# Ejecutar todas las pruebas unitarias
+# Ejecutar todas las pruebas unitarias del archivo App.test.js
 npm test
+
+# Ejecutar todas las pruebas unitarias del archivo weightUtils.test.js
+npx react-scripts test weightUtils
 
 # Ejecutar pruebas con cobertura de código
 npm run test:coverage
@@ -60,8 +63,12 @@ La cobertura de código se puede visualizar en detalle abriendo el archivo `cove
 
 Las pruebas E2E simulan interacciones reales de usuario para validar el funcionamiento completo de la aplicación.
 
-```bash
-# Ejecutar pruebas E2E en modo headless
+# !! Importante
+# Para poder ejecutar este test se debe primero levantar el servidor.
+``` bash
+npm run start
+
+# Ejecutar pruebas E2E en modo headless * EN UNA NUEVA TERMINAL, SIN CERRAR EL TERMINAL QUE LEVANTA EL SERVIDOR * 
 npm run test:e2e
 
 # Abrir Cypress para ejecutar pruebas de forma interactiva
